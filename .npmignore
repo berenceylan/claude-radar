@@ -1,0 +1,5 @@
+data.json
+.claude/
+.DS_Store
+*.log
+generate-data.js

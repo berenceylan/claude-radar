@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Radar</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0f1117;
+            --bg-secondary: #1a1d27;
+            --bg-card: #1e2130;
+            --bg-card-hover: #252840;
+            --border: #2a2d3e;
+            --text-primary: #e4e6f0;
+            --text-secondary: #8b8fa3;
+            --text-muted: #5c6078;
+            --accent-blue: #4f8ff7;
+            --accent-purple: #a855f7;
+            --accent-green: #22c55e;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-cyan: #06b6d4;
+            --accent-pink: #ec4899;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1d2e 0%, #0f1117 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-meta {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .header-meta .refresh-btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 6px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .header-meta .refresh-btn:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 24px 32px;
+        }
+
+        /* KPI Cards Row */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.2s;
+        }
+
+        .kpi-card:hover {
+            border-color: var(--accent-blue);
+            transform: translateY(-2px);
+        }
+
+        .kpi-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .kpi-value {
+            font-size: 28px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .kpi-sub {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .kpi-value.blue { color: var(--accent-blue); }
+        .kpi-value.purple { color: var(--accent-purple); }
+        .kpi-value.green { color: var(--accent-green); }
+        .kpi-value.orange { color: var(--accent-orange); }
+        .kpi-value.red { color: var(--accent-red); }
+        .kpi-value.cyan { color: var(--accent-cyan); }
+
+        /* Charts Grid */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .charts-grid-equal {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .charts-grid-three {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .chart-card h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+        }
+
+        .chart-container.tall { height: 300px; }
+        .chart-container.medium { height: 250px; }
+        .chart-container.small { height: 200px; }
+
+        /* Project Table */
+        .table-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            overflow-x: auto;
+        }
+
+        .table-card h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        th:hover { color: var(--text-secondary); }
+        th.sort-asc::after { content: ' ▲'; }
+        th.sort-desc::after { content: ' ▼'; }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid rgba(42, 45, 62, 0.5);
+            font-size: 13px;
+        }
+
+        tr:hover td { background: rgba(79, 143, 247, 0.04); }
+
+        .project-name {
+            font-weight: 600;
+            color: var(--accent-blue);
+        }
+
+        .project-path {
+            font-size: 11px;
+            color: var(--text-muted);
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .cost-bar {
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            overflow: hidden;
+            min-width: 60px;
+        }
+
+        .cost-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple));
+        }
+
+        .token-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge-input { background: rgba(79, 143, 247, 0.15); color: var(--accent-blue); }
+        .badge-output { background: rgba(168, 85, 247, 0.15); color: var(--accent-purple); }
+        .badge-cache { background: rgba(34, 197, 94, 0.15); color: var(--accent-green); }
+
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+
+        .mono {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 12px;
+        }
+
+        /* Full width chart */
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 400px;
+            font-size: 18px;
+            color: var(--text-muted);
+        }
+
+        .loading .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 16px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Token type legend for table */
+        .token-breakdown {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .charts-grid { grid-template-columns: 1fr; }
+            .charts-grid-equal { grid-template-columns: 1fr; }
+            .charts-grid-three { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 768px) {
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+            .container { padding: 16px; }
+            .header { padding: 16px; flex-direction: column; gap: 12px; }
+        }
+
+        /* Project detail mini charts */
+        .project-row-detail {
+            display: none;
+        }
+
+        .project-row-detail td {
+            padding: 16px;
+            background: rgba(15, 17, 23, 0.5);
+        }
+
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .detail-chart {
+            height: 160px;
+            position: relative;
+        }
+
+        /* Section heading */
+        .section-heading {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 32px 0 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+
+        /* Header buttons */
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 6px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-icon {
+            font-size: 14px;
+            line-height: 1;
+        }
+
+        .btn.spinning .btn-icon {
+            animation: spin 0.8s linear infinite;
+        }
+
+        /* Settings Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.open {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px;
+            width: 420px;
+            max-width: 90vw;
+        }
+
+        .modal h2 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--text-primary);
+        }
+
+        .modal label {
+            display: block;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .modal select, .modal input {
+            width: 100%;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: var(--text-primary);
+            font-size: 14px;
+            margin-bottom: 16px;
+            outline: none;
+        }
+
+        .modal select:focus, .modal input:focus {
+            border-color: var(--accent-blue);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 8px;
+        }
+
+        .btn-primary {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: #3d7be0;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--accent-green);
+            color: var(--text-primary);
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 13px;
+            z-index: 1001;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Claude Radar</h1>
+        <div class="header-meta">
+            <span id="generated-at"></span>
+            <span id="date-range"></span>
+            <div class="header-actions">
+                <button class="btn" id="btn-regenerate" onclick="regenerateData()">
+                    <span class="btn-icon">&#x21bb;</span> Regenerate
+                </button>
+                <button class="btn" onclick="openSettings()">
+                    <span class="btn-icon">&#x2699;</span> Settings
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal">
+            <h2>Settings</h2>
+            <label>Subscription Plan</label>
+            <select id="setting-plan">
+                <option value="pro_20">Pro - $20/month</option>
+                <option value="max_100">Max - $100/month</option>
+                <option value="max_200">Max - $200/month</option>
+                <option value="team">Team - Custom rate</option>
+            </select>
+            <div id="custom-rate-row" style="display:none">
+                <label>Custom Monthly Rate ($)</label>
+                <input type="number" id="setting-rate" placeholder="e.g. 150" />
+            </div>
+            <div class="modal-actions">
+                <button class="btn" onclick="closeSettings()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveSettings()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <div class="container" id="app">
+        <div class="loading">
+            <div class="spinner"></div>
+            Loading data...
+        </div>
+    </div>
+
+    <script>
+    // ── Settings & Regenerate ─────────────────────────
+    const PLAN_RATES = { pro_20: 20, max_100: 100, max_200: 200 };
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    async function openSettings() {
+        const resp = await fetch('/api/config');
+        const { config } = await resp.json();
+        document.getElementById('setting-plan').value = config.plan || 'max_100';
+        document.getElementById('setting-rate').value = config.monthlyRate || '';
+        toggleCustomRate();
+        document.getElementById('settings-modal').classList.add('open');
+    }
+
+    function closeSettings() {
+        document.getElementById('settings-modal').classList.remove('open');
+    }
+
+    function toggleCustomRate() {
+        const plan = document.getElementById('setting-plan').value;
+        document.getElementById('custom-rate-row').style.display = plan === 'team' ? 'block' : 'none';
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('setting-plan').addEventListener('change', toggleCustomRate);
+        document.getElementById('settings-modal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeSettings();
+        });
+    });
+
+    async function saveSettings() {
+        const plan = document.getElementById('setting-plan').value;
+        const monthlyRate = plan === 'team'
+            ? parseFloat(document.getElementById('setting-rate').value) || 0
+            : PLAN_RATES[plan] || 100;
+
+        await fetch('/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plan, monthlyRate }),
+        });
+
+        closeSettings();
+        showToast('Settings saved. Regenerating...');
+        await regenerateAndReload();
+    }
+
+    async function regenerateData() {
+        const btn = document.getElementById('btn-regenerate');
+        btn.disabled = true;
+        btn.classList.add('spinning');
+        btn.querySelector('.btn-icon').textContent = '\u21bb';
+
+        try {
+            await regenerateAndReload();
+            showToast('Data regenerated');
+        } catch (e) {
+            showToast('Error: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.classList.remove('spinning');
+        }
+    }
+
+    async function regenerateAndReload() {
+        await fetch('/api/regenerate', { method: 'POST' });
+        const data = await loadData();
+        renderDashboard(data);
+    }
+
+    // ── Dashboard ─────────────────────────────────────
+    const COLORS = {
+        blue: '#4f8ff7',
+        purple: '#a855f7',
+        green: '#22c55e',
+        orange: '#f59e0b',
+        red: '#ef4444',
+        cyan: '#06b6d4',
+        pink: '#ec4899',
+        indigo: '#6366f1',
+        lime: '#84cc16',
+        amber: '#d97706',
+        teal: '#14b8a6',
+        rose: '#f43f5e',
+    };
+
+    const PALETTE = Object.values(COLORS);
+
+    function fmt(n, decimals = 0) {
+        if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(1) + 'B';
+        if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+        if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
+        return n.toFixed(decimals);
+    }
+
+    function fmtCost(n) {
+        return '$' + n.toFixed(2);
+    }
+
+    function fmtTokens(n) {
+        if (n >= 1_000_000) return (n / 1_000_000).toFixed(2) + 'M';
+        if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
+        return n.toString();
+    }
+
+    function fmtDate(dateStr) {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    function chartDefaults() {
+        Chart.defaults.color = '#8b8fa3';
+        Chart.defaults.borderColor = 'rgba(42, 45, 62, 0.5)';
+        Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+        Chart.defaults.font.size = 11;
+        Chart.defaults.plugins.legend.labels.usePointStyle = true;
+        Chart.defaults.plugins.legend.labels.pointStyleWidth = 8;
+        Chart.defaults.plugins.legend.labels.padding = 16;
+    }
+
+    async function loadData() {
+        const resp = await fetch('/api/data?t=' + Date.now());
+        return resp.json();
+    }
+
+    function renderDashboard(data) {
+        const app = document.getElementById('app');
+        const s = data.summary;
+
+        // Header meta
+        document.getElementById('generated-at').textContent = 'Generated: ' + new Date(data.generated).toLocaleString();
+        if (s.firstSessionDate) {
+            const first = new Date(s.firstSessionDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            document.getElementById('date-range').textContent = 'Since ' + first;
+        }
+
+        // Subscription data
+        const sub = data.subscription || { plan: 'Max', monthlyRate: 100, monthsActive: 1, actualCost: 100 };
+        const apiValue = s.apiEquivalentCost || 0;
+        const roi = sub.actualCost > 0 ? (apiValue / sub.actualCost) : 0;
+
+        // Calculate cache efficiency
+        const totalCacheTokens = s.totalCacheRead + s.totalCacheWrite;
+        const allTokens = s.totalTokens;
+        const cacheEfficiency = allTokens > 0 ? ((s.totalCacheRead / allTokens) * 100).toFixed(1) : 0;
+
+        const avgCostPerMessage = s.totalMessages > 0 ? apiValue / s.totalMessages : 0;
+
+        app.innerHTML = `
+            <!-- KPI Cards -->
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-label">Actual Cost (${sub.plan} Plan)</div>
+                    <div class="kpi-value green">${fmtCost(sub.actualCost)}</div>
+                    <div class="kpi-sub">${fmtCost(sub.monthlyRate)}/mo x ${sub.monthsActive} month${sub.monthsActive > 1 ? 's' : ''}</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">API Equivalent Value</div>
+                    <div class="kpi-value blue">${fmtCost(apiValue)}</div>
+                    <div class="kpi-sub">${fmtCost(avgCostPerMessage)} avg/message at API rates</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">ROI Multiplier</div>
+                    <div class="kpi-value purple">${roi.toFixed(1)}x</div>
+                    <div class="kpi-sub">value vs what you paid</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Total Tokens</div>
+                    <div class="kpi-value cyan">${fmtTokens(s.totalTokens)}</div>
+                    <div class="kpi-sub">${fmtTokens(s.totalInputTokens)} in / ${fmtTokens(s.totalOutputTokens)} out</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Messages</div>
+                    <div class="kpi-value orange">${fmt(s.totalMessages)}</div>
+                    <div class="kpi-sub">${s.totalProjects} projects</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Cache Efficiency</div>
+                    <div class="kpi-value green">${cacheEfficiency}%</div>
+                    <div class="kpi-sub">${fmtTokens(s.totalCacheRead)} cache reads</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Active Days</div>
+                    <div class="kpi-value orange">${data.dailyUsage.length}</div>
+                    <div class="kpi-sub">${fmtCost(sub.actualCost / Math.max(data.dailyUsage.length, 1))} actual cost/day</div>
+                </div>
+            </div>
+
+            <!-- Row 1: Cost over time + Cost by project pie -->
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3>Daily API Equivalent Value</h3>
+                    <div class="chart-container tall"><canvas id="chart-daily-cost"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h3>API Value by Project</h3>
+                    <div class="chart-container tall"><canvas id="chart-project-cost-pie"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Row 2: Token breakdown + Model distribution -->
+            <div class="charts-grid-equal">
+                <div class="chart-card">
+                    <h3>Daily Token Usage (Input vs Output)</h3>
+                    <div class="chart-container tall"><canvas id="chart-daily-tokens"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h3>Model Usage Distribution</h3>
+                    <div class="chart-container tall"><canvas id="chart-model-dist"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Row 3: Cache analysis + Messages per day + Cost per project bar -->
+            <div class="charts-grid-three">
+                <div class="chart-card">
+                    <h3>Cache Read vs Write Tokens</h3>
+                    <div class="chart-container medium"><canvas id="chart-cache"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h3>Messages Per Day</h3>
+                    <div class="chart-container medium"><canvas id="chart-messages-day"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h3>Cost Per Model</h3>
+                    <div class="chart-container medium"><canvas id="chart-model-cost-bar"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Row 4: Project cost horizontal bar -->
+            <div class="charts-grid">
+                <div class="chart-card full-width">
+                    <h3>API Value by Project (Ranked)</h3>
+                    <div class="chart-container" style="height: ${Math.max(250, data.projects.length * 32)}px">
+                        <canvas id="chart-project-bar"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tokens per project per day (stacked area) -->
+            <div class="charts-grid">
+                <div class="chart-card full-width">
+                    <h3>Daily Tokens by Project</h3>
+                    <div class="chart-container" style="height: 400px"><canvas id="chart-project-daily-tokens"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Cumulative cost -->
+            <div class="charts-grid">
+                <div class="chart-card full-width">
+                    <h3>Cumulative API Value Over Time</h3>
+                    <div class="chart-container tall"><canvas id="chart-cumulative"></canvas></div>
+                </div>
+            </div>
+
+            <!-- Project Table -->
+            <div class="table-card">
+                <h3>Project Breakdown</h3>
+                <table id="project-table">
+                    <thead>
+                        <tr>
+                            <th data-sort="name">Project</th>
+                            <th data-sort="cost" class="text-right sort-desc">API Value</th>
+                            <th data-sort="messages" class="text-right">Messages</th>
+                            <th data-sort="sessions" class="text-right">Sessions</th>
+                            <th data-sort="input" class="text-right">Input Tokens</th>
+                            <th data-sort="output" class="text-right">Output Tokens</th>
+                            <th data-sort="cacheRead" class="text-right">Cache Read</th>
+                            <th data-sort="cacheWrite" class="text-right">Cache Write</th>
+                            <th class="text-right" style="min-width: 120px">Value Share</th>
+                            <th data-sort="last" class="text-right">Last Active</th>
+                        </tr>
+                    </thead>
+                    <tbody id="project-tbody"></tbody>
+                </table>
+            </div>
+
+            <!-- Model Details Table -->
+            <div class="table-card">
+                <h3>Model Breakdown</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Model</th>
+                            <th class="text-right">Messages</th>
+                            <th class="text-right">Input Tokens</th>
+                            <th class="text-right">Output Tokens</th>
+                            <th class="text-right">Cache Read</th>
+                            <th class="text-right">Cache Write</th>
+                            <th class="text-right">Cost</th>
+                            <th class="text-right">Cost Share</th>
+                        </tr>
+                    </thead>
+                    <tbody id="model-tbody"></tbody>
+                </table>
+            </div>
+        `;
+
+        // Render all charts
+        renderDailyCostChart(data);
+        renderProjectCostPie(data);
+        renderDailyTokensChart(data);
+        renderModelDistChart(data);
+        renderCacheChart(data);
+        renderMessagesDayChart(data);
+        renderModelCostBar(data);
+        renderProjectBar(data);
+        renderProjectDailyTokens(data);
+        renderCumulativeChart(data);
+        renderProjectTable(data);
+        renderModelTable(data);
+        setupTableSort(data);
+    }
+
+    function renderDailyCostChart(data) {
+        const ctx = document.getElementById('chart-daily-cost').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.dailyUsage.map(d => fmtDate(d.date)),
+                datasets: [{
+                    label: 'Daily Cost ($)',
+                    data: data.dailyUsage.map(d => d.cost),
+                    backgroundColor: COLORS.blue + '99',
+                    borderColor: COLORS.blue,
+                    borderWidth: 1,
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => fmtCost(ctx.parsed.y),
+                            title: ctx => data.dailyUsage[ctx[0].dataIndex].date,
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: v => '$' + v.toFixed(0) },
+                        grid: { color: 'rgba(42, 45, 62, 0.3)' }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    function renderProjectCostPie(data) {
+        const ctx = document.getElementById('chart-project-cost-pie').getContext('2d');
+        const top10 = data.projects.slice(0, 10);
+        const otherCost = data.projects.slice(10).reduce((sum, p) => sum + p.totalCost, 0);
+        const labels = top10.map(p => p.name);
+        const values = top10.map(p => p.totalCost);
+        if (otherCost > 0) {
+            labels.push('Others');
+            values.push(otherCost);
+        }
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                    backgroundColor: PALETTE.slice(0, labels.length),
+                    borderColor: '#1e2130',
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'right', labels: { font: { size: 11 } } },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => `${ctx.label}: ${fmtCost(ctx.parsed)} (${((ctx.parsed / data.summary.apiEquivalentCost) * 100).toFixed(1)}%)`
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderDailyTokensChart(data) {
+        const ctx = document.getElementById('chart-daily-tokens').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.dailyUsage.map(d => fmtDate(d.date)),
+                datasets: [
+                    {
+                        label: 'Input',
+                        data: data.dailyUsage.map(d => d.inputTokens),
+                        backgroundColor: COLORS.blue + '99',
+                        stack: 'stack0',
+                        borderRadius: 2,
+                    },
+                    {
+                        label: 'Output',
+                        data: data.dailyUsage.map(d => d.outputTokens),
+                        backgroundColor: COLORS.purple + '99',
+                        stack: 'stack0',
+                        borderRadius: 2,
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => `${ctx.dataset.label}: ${fmtTokens(ctx.parsed.y)}`,
+                            title: ctx => data.dailyUsage[ctx[0].dataIndex].date,
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        stacked: true,
+                        beginAtZero: true,
+                        ticks: { callback: v => fmtTokens(v) },
+                        grid: { color: 'rgba(42, 45, 62, 0.3)' }
+                    },
+                    x: { stacked: true, grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    function renderModelDistChart(data) {
+        const ctx = document.getElementById('chart-model-dist').getContext('2d');
+        const models = Object.entries(data.modelUsage).filter(([k]) => k !== '<synthetic>');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: models.map(([k]) => k.replace('claude-', '')),
+                datasets: [{
+                    data: models.map(([, v]) => v.messages),
+                    backgroundColor: [COLORS.blue, COLORS.purple, COLORS.green, COLORS.orange, COLORS.cyan],
+                    borderColor: '#1e2130',
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'right', labels: { font: { size: 11 } } },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const total = models.reduce((s, [, v]) => s + v.messages, 0);
+                                return `${ctx.label}: ${fmt(ctx.parsed)} msgs (${((ctx.parsed / total) * 100).toFixed(1)}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderCacheChart(data) {
+        const ctx = document.getElementById('chart-cache').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.dailyUsage.map(d => fmtDate(d.date)),
+                datasets: [
+                    {
+                        label: 'Cache Read',
+                        data: data.dailyUsage.map(d => d.cacheRead),
+                        backgroundColor: COLORS.green + '80',
+                        stack: 'stack0',
+                    },
+                    {
+                        label: 'Cache Write',
+                        data: data.dailyUsage.map(d => d.cacheWrite),
+                        backgroundColor: COLORS.orange + '80',
+                        stack: 'stack0',
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        callbacks: { label: ctx => `${ctx.dataset.label}: ${fmtTokens(ctx.parsed.y)}` }
+                    }
+                },
+                scales: {
+                    y: {
+                        stacked: true,
+                        beginAtZero: true,
+                        ticks: { callback: v => fmtTokens(v) },
+                        grid: { color: 'rgba(42, 45, 62, 0.3)' }
+                    },
+                    x: { stacked: true, grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    function renderMessagesDayChart(data) {
+        const ctx = document.getElementById('chart-messages-day').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.dailyUsage.map(d => fmtDate(d.date)),
+                datasets: [{
+                    label: 'Messages',
+                    data: data.dailyUsage.map(d => d.messages),
+                    borderColor: COLORS.purple,
+                    backgroundColor: COLORS.purple + '20',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    pointBackgroundColor: COLORS.purple,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: ctx => data.dailyUsage[ctx[0].dataIndex].date,
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(42, 45, 62, 0.3)' }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    function renderModelCostBar(data) {
+        const ctx = document.getElementById('chart-model-cost-bar').getContext('2d');
+        const models = Object.entries(data.modelUsage)
+            .filter(([k]) => k !== '<synthetic>')
+            .sort(([, a], [, b]) => b.cost - a.cost);
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: models.map(([k]) => k.replace('claude-', '')),
+                datasets: [{
+                    data: models.map(([, v]) => v.cost),
+                    backgroundColor: [COLORS.blue, COLORS.purple, COLORS.green, COLORS.orange, COLORS.cyan],
+                    borderRadius: 6,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: { label: ctx => fmtCost(ctx.parsed.x) }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: { callback: v => '$' + fmt(v) },
+                        grid: { color: 'rgba(42, 45, 62, 0.3)' }
+                    },
+                    y: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    function renderProjectBar(data) {
+        const ctx = document.getElementById('chart-project-bar').getContext('2d');
+        const projects = data.projects.filter(p => p.totalCost > 0);
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: projects.map(p => p.name),
+                datasets: [{
+                    label: 'Cost ($)',
+                    data: projects.map(p => p.totalCost),
+                    backgroundColor: PALETTE.slice(0, projects.length).map(c => c + '99'),
+                    borderColor: PALETTE.slice(0, projects.length),
+                    borderWidth: 1,
+                    borderRadius: 6,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const p = projects[ctx.dataIndex];
+                                return [
+                                    `Cost: ${fmtCost(p.totalCost)}`,
+                                    `Messages: ${fmt(p.totalMessages)}`,
+                                    `Sessions: ${p.sessionCount}`,
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: { callback: v => '$' + fmt(v) },
+                        grid: { color: 'rgba(42, 45, 62, 0.3)' }
+                    },
+                    y: {
+                        grid: { display: false },
+                        ticks: { font: { size: 11 } }
+                    }
+                }
+            }
+        });
+    }
+
+    function renderProjectDailyTokens(data) {
+        const ctx = document.getElementById('chart-project-daily-tokens').getContext('2d');
+
+        // Collect all unique dates across all projects
+        const allDates = new Set();
+        data.projects.forEach(p => {
+            (p.dailyUsage || []).forEach(d => allDates.add(d.date));
+        });
+        const dates = [...allDates].sort();
+
+        // Take top 10 projects by total tokens, group rest as "Others"
+        const top = data.projects.slice(0, 10);
+        const rest = data.projects.slice(10);
+
+        const datasets = top.map((project, i) => {
+            const dailyMap = {};
+            (project.dailyUsage || []).forEach(d => {
+                dailyMap[d.date] = d.tokens + (d.cacheRead || 0) + (d.cacheWrite || 0);
+            });
+
+            return {
+                label: project.name,
+                data: dates.map(date => dailyMap[date] || 0),
+                backgroundColor: PALETTE[i % PALETTE.length] + '90',
+                borderColor: PALETTE[i % PALETTE.length],
+                borderWidth: 1,
+                fill: true,
+                stack: 'stack0',
+            };
+        });
+
+        // Add "Others" if there are more than 10 projects
+        if (rest.length > 0) {
+            const othersMap = {};
+            rest.forEach(p => {
+                (p.dailyUsage || []).forEach(d => {
+                    const tokens = d.tokens + (d.cacheRead || 0) + (d.cacheWrite || 0);
+                    othersMap[d.date] = (othersMap[d.date] || 0) + tokens;
+                });
+            });
+            datasets.push({
+                label: `Others (${rest.length})`,
+                data: dates.map(date => othersMap[date] || 0),
+                backgroundColor: '#5c607840',
+                borderColor: '#5c6078',
+                borderWidth: 1,
+                fill: true,
+                stack: 'stack0',
+            });
+        }
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: { labels: dates.map(d => fmtDate(d)), datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { font: { size: 11 } },
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => `${ctx.dataset.label}: ${fmtTokens(ctx.parsed.y)}`,
+                            title: ctx => dates[ctx[0].dataIndex],
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        stacked: true,
+                        beginAtZero: true,
+                        ticks: { callback: v => fmtTokens(v) },
+                        grid: { color: 'rgba(42, 45, 62, 0.3)' }
+                    },
+                    x: { stacked: true, grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    function renderCumulativeChart(data) {
+        const ctx = document.getElementById('chart-cumulative').getContext('2d');
+        let cumulative = 0;
+        const cumData = data.dailyUsage.map(d => {
+            cumulative += d.cost;
+            return cumulative;
+        });
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.dailyUsage.map(d => fmtDate(d.date)),
+                datasets: [{
+                    label: 'Cumulative Cost',
+                    data: cumData,
+                    borderColor: COLORS.red,
+                    backgroundColor: COLORS.red + '15',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    pointBackgroundColor: COLORS.red,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => fmtCost(ctx.parsed.y),
+                            title: ctx => data.dailyUsage[ctx[0].dataIndex].date,
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: v => '$' + fmt(v) },
+                        grid: { color: 'rgba(42, 45, 62, 0.3)' }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    function renderProjectTable(data) {
+        const tbody = document.getElementById('project-tbody');
+        const maxCost = data.projects[0]?.totalCost || 1;
+
+        tbody.innerHTML = data.projects.map(p => `
+            <tr>
+                <td>
+                    <div class="project-name">${p.name}</div>
+                    <div class="project-path" title="${p.path}">${p.path}</div>
+                </td>
+                <td class="text-right mono">${fmtCost(p.totalCost)}</td>
+                <td class="text-right mono">${fmt(p.totalMessages)}</td>
+                <td class="text-right mono">${p.sessionCount}</td>
+                <td class="text-right mono">${fmtTokens(p.totalInputTokens)}</td>
+                <td class="text-right mono">${fmtTokens(p.totalOutputTokens)}</td>
+                <td class="text-right mono">${fmtTokens(p.totalCacheRead)}</td>
+                <td class="text-right mono">${fmtTokens(p.totalCacheWrite)}</td>
+                <td class="text-right">
+                    <div class="cost-bar">
+                        <div class="cost-bar-fill" style="width: ${((p.totalCost / maxCost) * 100).toFixed(1)}%"></div>
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px">
+                        ${((p.totalCost / data.summary.apiEquivalentCost) * 100).toFixed(1)}%
+                    </div>
+                </td>
+                <td class="text-right mono" style="font-size: 11px; color: var(--text-secondary)">
+                    ${p.lastActivity ? new Date(p.lastActivity).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '-'}
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function renderModelTable(data) {
+        const tbody = document.getElementById('model-tbody');
+        const models = Object.entries(data.modelUsage)
+            .filter(([k]) => k !== '<synthetic>')
+            .sort(([, a], [, b]) => b.cost - a.cost);
+
+        tbody.innerHTML = models.map(([name, m]) => `
+            <tr>
+                <td class="mono" style="color: var(--accent-blue)">${name}</td>
+                <td class="text-right mono">${fmt(m.messages)}</td>
+                <td class="text-right mono">${fmtTokens(m.inputTokens)}</td>
+                <td class="text-right mono">${fmtTokens(m.outputTokens)}</td>
+                <td class="text-right mono">${fmtTokens(m.cacheRead)}</td>
+                <td class="text-right mono">${fmtTokens(m.cacheWrite)}</td>
+                <td class="text-right mono">${fmtCost(m.cost)}</td>
+                <td class="text-right mono" style="color: var(--text-secondary)">
+                    ${((m.cost / data.summary.apiEquivalentCost) * 100).toFixed(1)}%
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function setupTableSort(data) {
+        const table = document.getElementById('project-table');
+        if (!table) return;
+
+        const headers = table.querySelectorAll('th[data-sort]');
+        let currentSort = { key: 'cost', dir: 'desc' };
+
+        headers.forEach(th => {
+            th.addEventListener('click', () => {
+                const key = th.dataset.sort;
+                if (currentSort.key === key) {
+                    currentSort.dir = currentSort.dir === 'desc' ? 'asc' : 'desc';
+                } else {
+                    currentSort = { key, dir: 'desc' };
+                }
+
+                headers.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+                th.classList.add('sort-' + currentSort.dir);
+
+                const sortFn = {
+                    name: (a, b) => a.name.localeCompare(b.name),
+                    cost: (a, b) => a.totalCost - b.totalCost,
+                    messages: (a, b) => a.totalMessages - b.totalMessages,
+                    sessions: (a, b) => a.sessionCount - b.sessionCount,
+                    input: (a, b) => a.totalInputTokens - b.totalInputTokens,
+                    output: (a, b) => a.totalOutputTokens - b.totalOutputTokens,
+                    cacheRead: (a, b) => a.totalCacheRead - b.totalCacheRead,
+                    cacheWrite: (a, b) => a.totalCacheWrite - b.totalCacheWrite,
+                    last: (a, b) => (a.lastActivity || '').localeCompare(b.lastActivity || ''),
+                }[key];
+
+                if (sortFn) {
+                    data.projects.sort((a, b) => currentSort.dir === 'desc' ? -sortFn(a, b) : sortFn(a, b));
+                    renderProjectTable(data);
+                }
+            });
+        });
+    }
+
+    // Init
+    chartDefaults();
+    loadData().then(renderDashboard).catch(err => {
+        document.getElementById('app').innerHTML = `
+            <div class="loading" style="flex-direction: column; gap: 16px;">
+                <div style="color: var(--accent-red); font-size: 20px;">Failed to load data</div>
+                <div style="color: var(--text-muted);">Run <code style="background: var(--bg-secondary); padding: 4px 8px; border-radius: 4px;">node generate-data.js</code> first to generate data.json</div>
+                <div style="color: var(--text-muted); font-size: 12px;">${err.message}</div>
+            </div>
+        `;
+    });
+    </script>
+</body>
+</html>
