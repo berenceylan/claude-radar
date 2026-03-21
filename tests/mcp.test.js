@@ -6,7 +6,6 @@ const { createTestEnv, createMockConfig, writeTestJsonl, cleanupTestEnv } = requ
 const env = createTestEnv('mcp');
 const mockConfig = createMockConfig(env);
 
-jest.mock('../src/config', () => mockConfig);
 
 // Create test data
 const projDir = path.join(env.claudeDir, 'projects', '-test-mcp-proj');

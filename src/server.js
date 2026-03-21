@@ -140,6 +140,9 @@ function createServer(options = {}) {
   app.post('/api/regenerate', async (req, res) => {
     try {
       const result = await db.reindexAll();
+      if (result.error) {
+        return res.status(500).json({ error: result.error });
+      }
       try { git.indexGitData(); } catch {}
       const summary = db.getSummary();
       broadcast({ type: 'refresh' });

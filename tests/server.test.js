@@ -5,7 +5,6 @@ const { createTestEnv, createMockConfig, writeTestJsonl, cleanupTestEnv } = requ
 const env = createTestEnv('srv');
 const mockConfig = createMockConfig(env);
 
-jest.mock('../src/config', () => mockConfig);
 
 // Create minimal test data
 const projDir = path.join(env.claudeDir, 'projects', '-test-srv');
@@ -116,6 +115,8 @@ describe('server', () => {
     });
 
     it('POST /api/config updates config', async () => {
+      // Save original, restore after test to prevent corrupting real config
+      const origConfig = fs.readFileSync(env.configFile, 'utf8');
       const r = await fetch(baseUrl + '/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -124,6 +125,8 @@ describe('server', () => {
       const d = await r.json();
       expect(d.ok).toBe(true);
       expect(d.config.plan).toBe('pro_20');
+      // Restore original config
+      fs.writeFileSync(env.configFile, origConfig);
     });
   });
 

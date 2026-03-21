@@ -872,8 +872,17 @@ function getInsights() {
 
 /**
  * Full re-index: clears DB and re-indexes everything from scratch.
+ * Validates that the Claude data directory exists before clearing.
  */
 async function reindexAll(onProgress) {
+  const config = loadConfig();
+  const projectsDir = path.join(config.claudeDir, 'projects');
+
+  // Safety: don't clear DB if source directory doesn't exist
+  if (!fs.existsSync(projectsDir)) {
+    return { indexed: 0, skipped: 0, total: 0, error: 'Claude projects directory not found: ' + projectsDir };
+  }
+
   const db = openDb();
   db.exec('DELETE FROM messages; DELETE FROM sessions; DELETE FROM tool_calls; DELETE FROM subagents; DELETE FROM indexed_files;');
   db.close();

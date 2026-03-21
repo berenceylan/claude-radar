@@ -9,7 +9,7 @@ const os = require('os');
 const readline = require('readline');
 const { SUBSCRIPTION_PLANS } = require('./pricing');
 
-const CONFIG_DIR = path.join(os.homedir(), '.claude-radar');
+const CONFIG_DIR = process.env.CLAUDE_RADAR_CONFIG_DIR || path.join(os.homedir(), '.claude-radar');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 const CLAUDE_DIR = path.join(os.homedir(), '.claude');
 

@@ -5,7 +5,6 @@ const { createTestEnv, createMockConfig, writeTestJsonl, cleanupTestEnv } = requ
 const env = createTestEnv('git');
 const mockConfig = createMockConfig(env);
 
-jest.mock('../src/config', () => mockConfig);
 
 // Create JSONL data
 const projDir = path.join(env.claudeDir, 'projects', '-test-gitproj');

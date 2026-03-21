@@ -18,6 +18,9 @@ function createTestEnv(prefix) {
     plan: 'max_100', monthlyRate: 100, claudeDir,
   }));
 
+  // Set env var so config.js uses test directory
+  process.env.CLAUDE_RADAR_CONFIG_DIR = configDir;
+
   return { dir, claudeDir, configDir, configFile };
 }
 
