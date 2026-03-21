@@ -4,12 +4,12 @@
   "description": "Monitor and visualize your Claude Code token usage, costs, and ROI across projects",
   "main": "src/parser.js",
   "bin": {
-    "claude-radar": "./bin/ccmonitor.js"
+    "claude-radar": "./bin/claude-radar.js"
   },
   "scripts": {
-    "start": "node bin/ccmonitor.js serve",
-    "generate": "node bin/ccmonitor.js generate",
-    "mcp": "node bin/ccmonitor.js mcp"
+    "start": "node bin/claude-radar.js serve",
+    "generate": "node bin/claude-radar.js generate",
+    "mcp": "node bin/claude-radar.js mcp"
   },
   "keywords": [
     "claude",
@@ -32,7 +32,6 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
     "better-sqlite3": "^12.8.0",
-    "chokidar": "^5.0.0",
     "commander": "^13.1.0",
     "express": "^4.21.0",
     "open": "^10.1.0",

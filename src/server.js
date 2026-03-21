@@ -4,59 +4,309 @@
 
 const express = require('express');
 const path = require('path');
-const { parseAllData } = require('./parser');
+const http = require('http');
+const { WebSocketServer } = require('ws');
+const fs = require('fs');
 const { loadConfig, saveConfig } = require('./config');
 const { SUBSCRIPTION_PLANS } = require('./pricing');
+const db = require('./db');
+const git = require('./git');
 
 function createServer(options = {}) {
   const app = express();
   const port = options.port || 3400;
+  const config = loadConfig();
 
   app.use(express.json());
 
-  // Cache parsed data for 30 seconds to avoid re-parsing on every request
-  let cachedData = null;
-  let cacheTime = 0;
-  const CACHE_TTL = 30_000;
+  // ── Index on startup ──────────────────────────────
+  let indexReady = false;
+  let indexPromise = db.indexAll((p) => {
+    if (p.indexed % 20 === 0) {
+      process.stdout.write(`\r  Indexing... ${p.indexed} files`);
+    }
+  }).then((result) => {
+    if (result.indexed > 0) {
+      console.log(`\r  Indexed ${result.indexed} files (${result.skipped} unchanged)`);
+    }
+    // Index git data after session data is ready
+    try {
+      const gitResult = git.indexGitData();
+      if (gitResult.totalCommits > 0) {
+        console.log(`  Git: ${gitResult.totalCommits} commits (${gitResult.linkedCommits} linked to sessions)`);
+      }
+    } catch (e) { /* git indexing optional */ }
+    indexReady = true;
+    return result;
+  });
 
-  async function getData(force = false) {
-    const now = Date.now();
-    if (!force && cachedData && (now - cacheTime) < CACHE_TTL) return cachedData;
-    const config = loadConfig();
-    cachedData = await parseAllData(config);
-    cacheTime = now;
-    return cachedData;
+  function ensureReady(req, res, next) {
+    if (indexReady) return next();
+    indexPromise.then(() => next()).catch(err => res.status(500).json({ error: err.message }));
   }
 
-  // Get usage data
-  app.get('/api/data', async (req, res) => {
+  app.use('/api', ensureReady);
+
+  // ── Core data API (now powered by SQLite) ─────────
+  app.get('/api/data', (req, res) => {
     try {
-      const force = req.query.force === '1';
-      const data = await getData(force);
+      const { startDate, endDate } = req.query;
+      const opts = {};
+      if (startDate) opts.startDate = startDate;
+      if (endDate) opts.endDate = endDate;
+
+      const summary = db.getSummary();
+      const projects = db.getProjects(opts);
+      const dailyUsage = db.getDailyUsage(opts);
+      const modelUsage = db.getModelUsage(opts);
+      const projectDailyTokens = db.getProjectDailyTokens(opts);
+
+      // Build project daily usage map for chart compatibility
+      const projectsWithDaily = projects.map(p => ({
+        ...p,
+        name: p.name,
+        path: p.full_path,
+        totalCost: p.total_cost || 0,
+        totalMessages: p.total_messages || 0,
+        totalInputTokens: p.total_input_tokens || 0,
+        totalOutputTokens: p.total_output_tokens || 0,
+        totalCacheRead: p.total_cache_read || 0,
+        totalCacheWrite: p.total_cache_write || 0,
+        sessionCount: p.session_count || 0,
+        firstActivity: p.first_activity,
+        lastActivity: p.last_activity,
+        dailyUsage: db.getDailyUsage({ ...opts, projectId: p.id }),
+      }));
+
+      // Model usage as object
+      const modelUsageObj = {};
+      for (const m of modelUsage) {
+        modelUsageObj[m.model] = {
+          inputTokens: m.input_tokens || 0,
+          outputTokens: m.output_tokens || 0,
+          cacheRead: m.cache_read || 0,
+          cacheWrite: m.cache_write || 0,
+          cost: m.cost || 0,
+          messages: m.messages || 0,
+        };
+      }
+
+      res.json({
+        generated: new Date().toISOString(),
+        subscription: summary.subscription,
+        summary: {
+          totalProjects: summary.total_projects,
+          totalSessions: summary.total_sessions,
+          totalMessages: summary.total_messages,
+          totalInputTokens: summary.total_input_tokens || 0,
+          totalOutputTokens: summary.total_output_tokens || 0,
+          totalCacheRead: summary.total_cache_read || 0,
+          totalCacheWrite: summary.total_cache_write || 0,
+          totalTokens: summary.total_tokens || 0,
+          apiEquivalentCost: summary.api_equivalent_cost,
+          firstSessionDate: summary.first_activity,
+        },
+        modelUsage: modelUsageObj,
+        dailyUsage: dailyUsage.map(d => ({
+          date: d.date,
+          messages: d.messages,
+          inputTokens: d.input_tokens || 0,
+          outputTokens: d.output_tokens || 0,
+          cacheRead: d.cache_read || 0,
+          cacheWrite: d.cache_write || 0,
+          cost: d.cost || 0,
+          tokens: (d.input_tokens || 0) + (d.output_tokens || 0),
+        })),
+        projects: projectsWithDaily,
+        projectDailyTokens: projectDailyTokens,
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Re-index ──────────────────────────────────────
+  app.post('/api/regenerate', async (req, res) => {
+    try {
+      // Clear DB and re-index from scratch
+      const result = await db.indexAll();
+      const summary = db.getSummary();
+      // Notify WebSocket clients
+      broadcast({ type: 'refresh' });
+      res.json({ ok: true, projects: summary.total_projects, messages: summary.total_messages, ...result });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Sessions ──────────────────────────────────────
+  app.get('/api/sessions', (req, res) => {
+    try {
+      const { projectId, startDate, endDate, limit, offset } = req.query;
+      const sessions = db.getSessions({
+        projectId: projectId ? Number(projectId) : undefined,
+        startDate, endDate,
+        limit: limit ? Number(limit) : 50,
+        offset: offset ? Number(offset) : 0,
+      });
+      res.json(sessions);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/sessions/:id', (req, res) => {
+    try {
+      const detail = db.getSessionDetail(req.params.id);
+      if (!detail) return res.status(404).json({ error: 'Session not found' });
+      res.json(detail);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Tools ─────────────────────────────────────────
+  app.get('/api/tools', (req, res) => {
+    try {
+      const { startDate, endDate, projectId } = req.query;
+      const tools = db.getToolStats({
+        startDate, endDate,
+        projectId: projectId ? Number(projectId) : undefined,
+      });
+      res.json(tools);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Subagents ─────────────────────────────────────
+  app.get('/api/subagents', (req, res) => {
+    try {
+      const { sessionId, projectId } = req.query;
+      const agents = db.getSubagents({
+        sessionId,
+        projectId: projectId ? Number(projectId) : undefined,
+      });
+      res.json(agents);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Insights ──────────────────────────────────────
+  app.get('/api/insights', (req, res) => {
+    try {
+      res.json(db.getInsights());
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Git-to-Cost ────────────────────────────────────
+  app.get('/api/git/summary', (req, res) => {
+    try { res.json(git.getGitSummary()); } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.get('/api/git/projects', (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      res.json(git.getGitByProject({ startDate, endDate }));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.get('/api/git/branches', (req, res) => {
+    try {
+      const { projectId, startDate, endDate } = req.query;
+      res.json(git.getGitByBranch({ projectId: projectId ? Number(projectId) : undefined, startDate, endDate }));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.get('/api/git/commits', (req, res) => {
+    try {
+      const { projectId, sessionId, branch, startDate, endDate, limit } = req.query;
+      res.json(git.getGitCommits({
+        projectId: projectId ? Number(projectId) : undefined,
+        sessionId, branch, startDate, endDate,
+        limit: limit ? Number(limit) : 100,
+      }));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.get('/api/git/timeline', (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      res.json(git.getGitTimeline({ startDate, endDate }));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.get('/api/git/expensive', (req, res) => {
+    try {
+      const limit = req.query.limit ? Number(req.query.limit) : 20;
+      res.json(git.getMostExpensiveCommits(limit));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  app.post('/api/git/reindex', (req, res) => {
+    try {
+      const result = git.indexGitData();
+      res.json({ ok: true, ...result });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // ── Export ────────────────────────────────────────
+  app.get('/api/export/json', (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      const opts = {};
+      if (startDate) opts.startDate = startDate;
+      if (endDate) opts.endDate = endDate;
+
+      const data = {
+        exported: new Date().toISOString(),
+        summary: db.getSummary(),
+        projects: db.getProjects(opts),
+        dailyUsage: db.getDailyUsage(opts),
+        modelUsage: db.getModelUsage(opts),
+        toolStats: db.getToolStats(opts),
+      };
+      res.setHeader('Content-Disposition', 'attachment; filename=claude-radar-export.json');
       res.json(data);
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
   });
 
-  // Force regenerate
-  app.post('/api/regenerate', async (req, res) => {
+  app.get('/api/export/csv', (req, res) => {
     try {
-      const data = await getData(true);
-      res.json({ ok: true, projects: data.summary.totalProjects, messages: data.summary.totalMessages });
+      const { startDate, endDate } = req.query;
+      const opts = {};
+      if (startDate) opts.startDate = startDate;
+      if (endDate) opts.endDate = endDate;
+
+      const projects = db.getProjects(opts);
+      const header = 'Project,Path,Sessions,Messages,Input Tokens,Output Tokens,Cache Read,Cache Write,API Value,First Active,Last Active\n';
+      const rows = projects.map(p =>
+        [p.name, `"${p.full_path}"`, p.session_count, p.total_messages,
+         p.total_input_tokens, p.total_output_tokens, p.total_cache_read, p.total_cache_write,
+         (p.total_cost || 0).toFixed(2), p.first_activity || '', p.last_activity || ''
+        ].join(',')
+      ).join('\n');
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=claude-radar-export.csv');
+      res.send(header + rows);
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
   });
 
-  // Get current config
+  // ── Config ────────────────────────────────────────
   app.get('/api/config', (req, res) => {
-    const config = loadConfig();
+    const cfg = loadConfig();
     const plans = Object.entries(SUBSCRIPTION_PLANS).map(([key, val]) => ({ key, ...val }));
-    res.json({ config, plans });
+    res.json({ config: cfg, plans });
   });
 
-  // Update config
   app.post('/api/config', (req, res) => {
     try {
       const { plan, monthlyRate } = req.body;
@@ -64,35 +314,64 @@ function createServer(options = {}) {
       if (plan) current.plan = plan;
       if (monthlyRate !== undefined) current.monthlyRate = Number(monthlyRate);
       saveConfig(current);
-      // Bust cache so next data fetch uses new config
-      cachedData = null;
-      cacheTime = 0;
       res.json({ ok: true, config: current });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
   });
 
-  // Serve dashboard static files
+  // ── Static files ──────────────────────────────────
   app.use(express.static(path.join(__dirname, '..', 'dashboard')));
-
-  // Fallback to index.html
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'dashboard', 'index.html'));
   });
 
-  return { app, port };
+  // ── WebSocket for real-time updates ───────────────
+  const server = http.createServer(app);
+  const wss = new WebSocketServer({ server, path: '/ws' });
+  const clients = new Set();
+
+  wss.on('connection', (ws) => {
+    clients.add(ws);
+    ws.on('close', () => clients.delete(ws));
+  });
+
+  function broadcast(data) {
+    const msg = JSON.stringify(data);
+    for (const ws of clients) {
+      if (ws.readyState === 1) ws.send(msg);
+    }
+  }
+
+  // ── File watcher for real-time ────────────────────
+  if (!options.noWatch) {
+    const watchDir = path.join(config.claudeDir, 'projects');
+    try {
+      let debounceTimer = null;
+      fs.watch(watchDir, { recursive: true }, (eventType, filename) => {
+        if (!filename || !filename.endsWith('.jsonl')) return;
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(async () => {
+          const result = await db.indexAll();
+          if (result.indexed > 0) {
+            broadcast({ type: 'refresh', indexed: result.indexed });
+          }
+        }, 3000);
+      });
+    } catch { /* watcher optional */ }
+  }
+
+  return { server, app, port };
 }
 
 function startServer(options = {}) {
-  const { app, port } = createServer(options);
+  const { server, port } = createServer(options);
 
-  app.listen(port, () => {
+  server.listen(port, () => {
     const url = `http://localhost:${port}`;
     console.log(`\n  Claude Radar Dashboard`);
     console.log(`  ${url}\n`);
 
-    // Try to open browser
     if (!options.noOpen) {
       import('open').then(mod => mod.default(url)).catch(() => {});
     }
