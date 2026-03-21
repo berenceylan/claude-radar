@@ -152,6 +152,78 @@ function createServer(options = {}) {
     }
   });
 
+  // ── Project Detail ─────────────────────────────────
+  app.get('/api/project/:id', (req, res) => {
+    try {
+      const projectId = Number(req.params.id);
+      const { startDate, endDate } = req.query;
+      const opts = { projectId, startDate, endDate };
+
+      // Get project info
+      const projects = db.getProjects(opts);
+      const project = projects.find(p => p.id === projectId);
+      if (!project) return res.status(404).json({ error: 'Project not found' });
+
+      // Gather all project-specific data
+      const dailyUsage = db.getDailyUsage(opts);
+      const modelUsage = db.getModelUsage(opts);
+      const sessions = db.getSessions({ ...opts, limit: 200 });
+      const toolStats = db.getToolStats(opts);
+      const subagents = db.getSubagents({ projectId });
+
+      // Git data
+      let gitCommits = [], gitSummary = {};
+      try {
+        gitCommits = git.getGitCommits({ projectId, startDate, endDate, limit: 500 });
+        const byProj = git.getGitByProject({ startDate, endDate });
+        gitSummary = byProj.find(p => p.project_id === projectId) || {};
+      } catch {}
+
+      // Cache analysis
+      const totalInput = (project.total_input_tokens || 0) + (project.total_cache_read || 0);
+      const cacheHitRate = totalInput > 0 ? ((project.total_cache_read || 0) / totalInput * 100) : 0;
+
+      // Busiest day
+      const busiestDay = dailyUsage.reduce((max, d) => d.cost > (max?.cost || 0) ? d : max, null);
+
+      // Average session cost
+      const avgSessionCost = sessions.length > 0
+        ? sessions.reduce((s, x) => s + (x.total_cost || 0), 0) / sessions.length : 0;
+
+      res.json({
+        project,
+        dailyUsage,
+        modelUsage,
+        sessions,
+        toolStats,
+        subagents,
+        gitCommits,
+        gitSummary,
+        stats: {
+          cacheHitRate: cacheHitRate.toFixed(1),
+          busiestDay,
+          avgSessionCost,
+          totalSessions: sessions.length,
+          totalSubagents: subagents.length,
+          totalCommits: gitCommits.length,
+          linkedCommits: gitCommits.filter(c => c.session_id).length,
+        },
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Projects list ─────────────────────────────────
+  app.get('/api/projects', (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      res.json(db.getProjects({ startDate, endDate }));
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── Sessions ──────────────────────────────────────
   app.get('/api/sessions', (req, res) => {
     try {

@@ -5,207 +5,271 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Claude Radar</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC" crossorigin="anonymous"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /* ── Theme Variables ─────────────────────────── */
+        /* ── Themes ──────────────────────────────────── */
         [data-theme="dark"] {
-            --bg-primary: #0f1117; --bg-secondary: #1a1d27; --bg-card: #1e2130;
-            --bg-card-hover: #252840; --border: #2a2d3e;
-            --text-primary: #e4e6f0; --text-secondary: #8b8fa3; --text-muted: #5c6078;
+            --bg-0: #08090d; --bg-1: #0f1117; --bg-2: #171923; --bg-3: #1e2130;
+            --border: #262a3a; --border-hover: #3b4060;
+            --text-1: #eaecf4; --text-2: #8b8fa3; --text-3: #50546a;
+            --glow: rgba(79,143,247,0.08);
         }
         [data-theme="light"] {
-            --bg-primary: #f5f6fa; --bg-secondary: #ffffff; --bg-card: #ffffff;
-            --bg-card-hover: #f0f1f5; --border: #e0e2ea;
-            --text-primary: #1a1d27; --text-secondary: #5c6078; --text-muted: #8b8fa3;
+            --bg-0: #f0f2f7; --bg-1: #f8f9fc; --bg-2: #ffffff; --bg-3: #ffffff;
+            --border: #dfe2ea; --border-hover: #c0c4d0;
+            --text-1: #111827; --text-2: #4b5563; --text-3: #9ca3af;
+            --glow: rgba(79,143,247,0.05);
         }
         [data-theme="contrast"] {
-            --bg-primary: #000000; --bg-secondary: #111111; --bg-card: #1a1a1a;
-            --bg-card-hover: #222222; --border: #444444;
-            --text-primary: #ffffff; --text-secondary: #cccccc; --text-muted: #888888;
+            --bg-0: #000; --bg-1: #0a0a0a; --bg-2: #141414; --bg-3: #1e1e1e;
+            --border: #333; --border-hover: #555;
+            --text-1: #fff; --text-2: #bbb; --text-3: #777;
+            --glow: rgba(79,143,247,0.12);
         }
         :root {
-            --accent-blue: #4f8ff7; --accent-purple: #a855f7; --accent-green: #22c55e;
-            --accent-orange: #f59e0b; --accent-red: #ef4444; --accent-cyan: #06b6d4;
-            --accent-pink: #ec4899; --accent-indigo: #6366f1;
+            --blue: #4f8ff7; --purple: #a855f7; --green: #22c55e; --orange: #f59e0b;
+            --red: #ef4444; --cyan: #06b6d4; --pink: #ec4899; --indigo: #6366f1;
+            --radius: 10px; --transition: 180ms ease;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Fira Code', 'SF Mono', 'Cascadia Code', 'JetBrains Mono', monospace;
+            background: var(--bg-0); color: var(--text-1);
+            min-height: 100vh; display: flex;
+            -webkit-font-smoothing: antialiased;
+            font-size: 13px;
+        }
 
-        /* ── Header ──────────────────────────────────── */
-        .header { background: var(--bg-secondary); border-bottom: 1px solid var(--border); padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
-        .header h1 { font-size: 20px; font-weight: 700; background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .header-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-        .header-meta { font-size: 12px; color: var(--text-muted); margin-right: 8px; }
+        /* ── Sidebar ─────────────────────────────────── */
+        .sidebar {
+            width: 220px; min-height: 100vh; background: var(--bg-1);
+            border-right: 1px solid var(--border); padding: 20px 0;
+            display: flex; flex-direction: column; position: fixed; top: 0; left: 0; z-index: 100;
+        }
+        .sidebar-brand { padding: 0 20px 24px; display: flex; align-items: center; gap: 10px; }
+        .sidebar-brand svg { width: 28px; height: 28px; }
+        .sidebar-brand span { font-size: 16px; font-weight: 700; background: linear-gradient(135deg, var(--blue), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .sidebar-nav { flex: 1; }
+        .nav-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 9px 20px; margin: 2px 8px; border-radius: 8px;
+            font-size: 13px; font-weight: 500; color: var(--text-2);
+            cursor: pointer; transition: all var(--transition); user-select: none;
+        }
+        .nav-item:hover { background: var(--glow); color: var(--text-1); }
+        .nav-item.active { background: var(--glow); color: var(--blue); font-weight: 600; }
+        .nav-item svg { width: 18px; height: 18px; opacity: 0.6; flex-shrink: 0; pointer-events: none; }
+        .nav-item * { pointer-events: none; }
+        .nav-item.active svg { opacity: 1; }
+        .nav-section { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-3); padding: 16px 20px 6px; }
+        .sidebar-footer { padding: 12px 20px; border-top: 1px solid var(--border); }
+        .sidebar-footer .meta { font-size: 11px; color: var(--text-3); display: flex; align-items: center; gap: 6px; }
+        .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; flex-shrink: 0; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
 
-        /* ── Buttons ─────────────────────────────────── */
-        .btn { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-secondary); padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.2s; display: inline-flex; align-items: center; gap: 4px; }
-        .btn:hover { background: var(--bg-card-hover); color: var(--text-primary); }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .btn-primary { background: var(--accent-blue); border-color: var(--accent-blue); color: #fff; }
-        .btn-primary:hover { opacity: 0.85; }
-        .btn.active { border-color: var(--accent-blue); color: var(--accent-blue); }
+        /* ── Main Content ────────────────────────────── */
+        .main { margin-left: 220px; flex: 1; min-height: 100vh; }
+        .topbar {
+            position: sticky; top: 0; z-index: 40;
+            background: var(--bg-1); border-bottom: 1px solid var(--border);
+            padding: 12px 28px; display: flex; align-items: center; gap: 10px;
+            backdrop-filter: blur(12px);
+        }
+        .topbar-title { font-size: 15px; font-weight: 600; flex: 1; }
+        .page { padding: 24px 28px; }
 
-        /* ── Date inputs ─────────────────────────────── */
-        .date-input { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-primary); padding: 5px 8px; border-radius: 6px; font-size: 12px; }
-        .date-input:focus { border-color: var(--accent-blue); outline: none; }
+        /* ── Controls ────────────────────────────────── */
+        .btn {
+            background: var(--bg-2); border: 1px solid var(--border); color: var(--text-2);
+            padding: 6px 12px; border-radius: 7px; cursor: pointer; font-size: 12px;
+            font-family: inherit; transition: all var(--transition);
+            display: inline-flex; align-items: center; gap: 5px;
+        }
+        .btn:hover { background: var(--bg-3); color: var(--text-1); border-color: var(--border-hover); }
+        .btn:disabled { opacity: .4; cursor: not-allowed; }
+        .btn-primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+        .btn-primary:hover { opacity: .85; }
+        .input {
+            background: var(--bg-2); border: 1px solid var(--border); color: var(--text-1);
+            padding: 6px 10px; border-radius: 7px; font-size: 12px; font-family: inherit; outline: none;
+        }
+        .input:focus { border-color: var(--blue); }
+        .sep { width: 1px; height: 20px; background: var(--border); }
 
-        /* ── Tabs ────────────────────────────────────── */
-        .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); padding: 0 24px; background: var(--bg-secondary); }
-        .tab { padding: 10px 18px; font-size: 13px; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
-        .tab:hover { color: var(--text-primary); }
-        .tab.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); }
+        /* ── Hero KPIs ───────────────────────────────── */
+        .hero-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+        .hero-card {
+            background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 20px 24px; position: relative; overflow: hidden;
+            transition: border-color var(--transition);
+        }
+        .hero-card:hover { border-color: var(--border-hover); }
+        .hero-card .label { font-size: 12px; color: var(--text-3); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+        .hero-card .value { font-size: 32px; font-weight: 700; font-family: 'Fira Code', monospace; line-height: 1; }
+        .hero-card .sub { font-size: 12px; color: var(--text-2); margin-top: 6px; }
+        .hero-card .accent-line { position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+
+        /* ── Stat Row ────────────────────────────────── */
+        .stat-row { display: flex; gap: 24px; margin-bottom: 24px; padding: 14px 20px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius); }
+        .stat-item { display: flex; flex-direction: column; }
+        .stat-item .s-val { font-size: 15px; font-weight: 600; font-family: 'Fira Code', monospace; }
+        .stat-item .s-lbl { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+        /* ── Cards & Bento Grid ──────────────────────── */
+        .bento { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; margin-bottom: 16px; }
+        .card {
+            background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 18px; transition: border-color var(--transition);
+        }
+        .card:hover { border-color: var(--border-hover); }
+        .card-header { font-size: 12px; font-weight: 600; color: var(--text-2); margin-bottom: 14px; text-transform: uppercase; letter-spacing: .3px; }
+        .span-8 { grid-column: span 8; } .span-4 { grid-column: span 4; }
+        .span-6 { grid-column: span 6; } .span-12 { grid-column: span 12; }
+        .chart-wrap { position: relative; width: 100%; }
+        .chart-h-sm { height: 180px; } .chart-h-md { height: 240px; } .chart-h-lg { height: 300px; }
+
+        /* ── Tables ──────────────────────────────────── */
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-3); padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+        td { padding: 9px 10px; border-bottom: 1px solid var(--border); font-size: 12px; }
+        tr { cursor: pointer; transition: background var(--transition); }
+        tr:hover td { background: var(--glow); }
+        .mono { font-family: 'Fira Code', monospace; font-size: 11px; }
+        .text-right { text-align: right; }
+        .project-name { font-weight: 600; color: var(--blue); }
+        .project-path { font-size: 10px; color: var(--text-3); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .bar-track { height: 4px; background: var(--border); border-radius: 2px; min-width: 60px; }
+        .bar-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--blue), var(--purple)); }
+
+        /* ── Git ─────────────────────────────────────── */
+        .commit-hash { font-family: 'Fira Code', monospace; font-size: 11px; color: var(--orange); }
+        .branch-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; background: rgba(168,85,247,.1); color: var(--purple); }
+        .lines-add { color: var(--green); } .lines-del { color: var(--red); }
+
+        /* ── Insights ────────────────────────────────── */
+        .insight { padding: 14px 18px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid; }
+        .insight.warning { background: rgba(245,158,11,.06); border-color: var(--orange); }
+        .insight.info { background: rgba(79,143,247,.04); border-color: var(--blue); }
+        .insight-title { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+        .insight-detail { font-size: 12px; color: var(--text-2); line-height: 1.5; }
+
+        /* ── Sessions ────────────────────────────────── */
+        .msg-timeline { max-height: 500px; overflow-y: auto; }
+        .msg-item { padding: 8px 14px; border-left: 2px solid var(--border); margin-left: 8px; margin-bottom: 3px; font-size: 12px; transition: background var(--transition); }
+        .msg-item:hover { background: var(--glow); }
+        .msg-item.user { border-color: var(--blue); }
+        .msg-item.assistant { border-color: var(--purple); }
+        .msg-meta { font-size: 10px; color: var(--text-3); margin-bottom: 2px; font-family: 'Fira Code', monospace; }
+        .msg-preview { color: var(--text-2); word-break: break-word; line-height: 1.5; }
+
+        /* ── Modal ───────────────────────────────────── */
+        .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(6px); z-index:1000; justify-content:center; align-items:center; }
+        .modal-overlay.open { display:flex; }
+        .modal { background:var(--bg-2); border:1px solid var(--border); border-radius:14px; padding:28px; width:400px; max-width:90vw; }
+        .modal h2 { font-size:16px; font-weight:700; margin-bottom:20px; }
+        .modal label { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--text-3); margin-bottom:5px; }
+        .modal select, .modal input { width:100%; background:var(--bg-1); border:1px solid var(--border); border-radius:7px; padding:9px 12px; color:var(--text-1); font-size:13px; font-family:inherit; margin-bottom:14px; outline:none; }
+        .modal select:focus, .modal input:focus { border-color:var(--blue); }
+        .modal-actions { display:flex; gap:8px; justify-content:flex-end; }
+
+        /* ── Toast ───────────────────────────────────── */
+        .toast { position:fixed; bottom:24px; right:24px; background:var(--bg-3); border:1px solid var(--green); color:var(--text-1); padding:10px 18px; border-radius:8px; font-size:12px; z-index:1001; opacity:0; transform:translateY(10px); transition:all .3s; font-family:'Fira Code',monospace; }
+        .toast.show { opacity:1; transform:translateY(0); }
+
+        /* ── Tab Content ─────────────────────────────── */
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        /* ── Container ───────────────────────────────── */
-        .container { max-width: 1600px; margin: 0 auto; padding: 20px 24px; }
-
-        /* ── KPI Grid ────────────────────────────────── */
-        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
-        .kpi-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; transition: all 0.2s; }
-        .kpi-card:hover { border-color: var(--accent-blue); transform: translateY(-1px); }
-        .kpi-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 6px; }
-        .kpi-value { font-size: 24px; font-weight: 700; line-height: 1.2; }
-        .kpi-sub { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
-        .kpi-value.blue { color: var(--accent-blue); } .kpi-value.purple { color: var(--accent-purple); }
-        .kpi-value.green { color: var(--accent-green); } .kpi-value.orange { color: var(--accent-orange); }
-        .kpi-value.red { color: var(--accent-red); } .kpi-value.cyan { color: var(--accent-cyan); }
-
-        /* ── Charts ──────────────────────────────────── */
-        .grid-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 12px; }
-        .grid-eq { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-        .chart-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
-        .chart-card h3 { font-size: 13px; font-weight: 600; margin-bottom: 12px; color: var(--text-secondary); }
-        .chart-container { position: relative; width: 100%; }
-        .chart-container.tall { height: 280px; } .chart-container.medium { height: 220px; }
-        .full-width { grid-column: 1 / -1; }
-
-        /* ── Tables ──────────────────────────────────── */
-        .table-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 12px; overflow-x: auto; }
-        .table-card h3 { font-size: 13px; font-weight: 600; margin-bottom: 12px; color: var(--text-secondary); }
-        table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); padding: 8px 10px; border-bottom: 1px solid var(--border); cursor: pointer; white-space: nowrap; }
-        th:hover { color: var(--text-secondary); }
-        th.sort-asc::after { content: ' ▲'; } th.sort-desc::after { content: ' ▼'; }
-        td { padding: 10px; border-bottom: 1px solid rgba(42,45,62,0.3); font-size: 12px; }
-        tr:hover td { background: rgba(79,143,247,0.04); }
-        .mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; }
-        .text-right { text-align: right; }
-        .project-name { font-weight: 600; color: var(--accent-blue); }
-        .project-path { font-size: 10px; color: var(--text-muted); max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .cost-bar { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; min-width: 50px; }
-        .cost-bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple)); }
-        .clickable { cursor: pointer; }
-        .clickable:hover { text-decoration: underline; }
-
-        /* ── Git badges ─────────────────────────────────── */
-        .commit-hash { font-family: 'SF Mono','Fira Code',monospace; font-size: 11px; color: var(--accent-orange); }
-        .branch-badge { display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; background: rgba(168,85,247,0.12); color: var(--accent-purple); }
-        .lines-added { color: var(--accent-green); } .lines-deleted { color: var(--accent-red); }
-
-        /* ── Insights ────────────────────────────────── */
-        .insight { padding: 12px 16px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid; }
-        .insight.warning { background: rgba(245,158,11,0.08); border-color: var(--accent-orange); }
-        .insight.info { background: rgba(79,143,247,0.06); border-color: var(--accent-blue); }
-        .insight-title { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
-        .insight-detail { font-size: 12px; color: var(--text-secondary); }
-
-        /* ── Session Detail ──────────────────────────── */
-        .session-detail { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
-        .msg-timeline { max-height: 500px; overflow-y: auto; }
-        .msg-item { padding: 8px 12px; border-left: 2px solid var(--border); margin-left: 8px; margin-bottom: 4px; font-size: 12px; }
-        .msg-item.user { border-color: var(--accent-blue); }
-        .msg-item.assistant { border-color: var(--accent-purple); }
-        .msg-meta { font-size: 10px; color: var(--text-muted); margin-bottom: 2px; }
-        .msg-preview { color: var(--text-secondary); word-break: break-word; }
-        .back-btn { margin-bottom: 16px; }
-
-        /* ── Modal ───────────────────────────────────── */
-        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-overlay.open { display: flex; }
-        .modal { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; width: 400px; max-width: 90vw; }
-        .modal h2 { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
-        .modal label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 4px; }
-        .modal select, .modal input { width: 100%; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; color: var(--text-primary); font-size: 13px; margin-bottom: 12px; outline: none; }
-        .modal select:focus, .modal input:focus { border-color: var(--accent-blue); }
-        .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
-
-        /* ── Toast ───────────────────────────────────── */
-        .toast { position: fixed; bottom: 20px; right: 20px; background: var(--bg-card); border: 1px solid var(--accent-green); color: var(--text-primary); padding: 10px 16px; border-radius: 8px; font-size: 12px; z-index: 1001; opacity: 0; transform: translateY(10px); transition: all 0.3s; }
-        .toast.show { opacity: 1; transform: translateY(0); }
-
-        /* ── Live indicator ──────────────────────────── */
-        .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-green); display: inline-block; margin-right: 4px; animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-
         /* ── Loading ─────────────────────────────────── */
-        .loading { display: flex; justify-content: center; align-items: center; height: 300px; color: var(--text-muted); }
-        .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent-blue); border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 12px; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading { display:flex; justify-content:center; align-items:center; height:300px; color:var(--text-3); }
+        .spinner { width:28px; height:28px; border:2px solid var(--border); border-top-color:var(--blue); border-radius:50%; animation:spin .7s linear infinite; margin-right:10px; }
+        @keyframes spin { to { transform:rotate(360deg); } }
 
         /* ── Responsive ──────────────────────────────── */
-        @media (max-width: 1200px) { .grid-2, .grid-eq, .grid-3 { grid-template-columns: 1fr; } }
-        @media (max-width: 768px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } .container { padding: 12px; } .header { padding: 12px; } .tabs { padding: 0 12px; overflow-x: auto; } }
+        @media (max-width:1200px) { .bento { grid-template-columns: repeat(6,1fr); } .span-8,.span-4 { grid-column: span 6; } }
+        @media (max-width:768px) {
+            .sidebar { display:none; }
+            .main { margin-left:0; }
+            .hero-kpis { grid-template-columns: 1fr; }
+            .bento { grid-template-columns: 1fr; }
+            .span-8,.span-4,.span-6,.span-12 { grid-column: span 1; }
+            .stat-row { flex-wrap: wrap; }
+            .page { padding: 16px; }
+        }
+        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0s !important; transition-duration: 0s !important; } }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Claude Radar</h1>
-        <div class="header-controls">
-            <span class="header-meta" id="header-meta"></span>
-            <input type="date" class="date-input" id="start-date" title="Start date">
-            <input type="date" class="date-input" id="end-date" title="End date">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <svg viewBox="0 0 24 24" fill="none" stroke="url(#g)" stroke-width="2" stroke-linecap="round"><defs><linearGradient id="g" x1="0" y1="0" x2="24" y2="24"><stop offset="0%" stop-color="var(--blue)"/><stop offset="100%" stop-color="var(--purple)"/></linearGradient></defs><circle cx="12" cy="12" r="10"/><path d="M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10"/><path d="M2 12h20"/></svg>
+            <span>Claude Radar</span>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section">Monitor</div>
+            <div class="nav-item active" data-tab="overview">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                Overview
+            </div>
+            <div class="nav-item" data-tab="sessions">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                Sessions
+            </div>
+            <div class="nav-section">Analyze</div>
+            <div class="nav-item" data-tab="git">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/></svg>
+                Git Costs
+            </div>
+            <div class="nav-item" data-tab="project">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                Project Deep Dive
+            </div>
+            <div class="nav-item" data-tab="tools">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                Tools
+            </div>
+            <div class="nav-item" data-tab="insights">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                Insights
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="meta"><span class="live-dot"></span><span id="sidebar-meta">Connecting...</span></div>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <div class="main">
+        <div class="topbar">
+            <div class="topbar-title" id="page-title">Overview</div>
+            <input type="date" class="input" id="start-date" title="Start date">
+            <input type="date" class="input" id="end-date" title="End date">
             <button class="btn" onclick="applyDateFilter()">Filter</button>
-            <button class="btn" onclick="clearDateFilter()">Clear</button>
-            <span style="width:1px; height:20px; background:var(--border); margin:0 4px;"></span>
-            <button class="btn" id="btn-regen" onclick="regenerate()">&#x21bb; Refresh</button>
+            <button class="btn" onclick="clearDateFilter()">Reset</button>
+            <div class="sep"></div>
+            <button class="btn" id="btn-regen" onclick="regenerate()">Refresh</button>
             <button class="btn" onclick="exportData('json')">JSON</button>
             <button class="btn" onclick="exportData('csv')">CSV</button>
             <button class="btn" onclick="generateReport()">Report</button>
-            <button class="btn" onclick="requestNotifications()" title="Enable browser notifications">&#x1F514;</button>
-            <button class="btn" onclick="openSettings()">&#x2699;</button>
-            <select class="date-input" id="theme-select" onchange="setTheme(this.value)" style="width:auto">
+            <button class="btn" onclick="openSettings()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </button>
+            <select class="input" id="theme-select" onchange="setTheme(this.value)" style="width:auto;padding-right:24px">
                 <option value="dark">Dark</option>
                 <option value="light">Light</option>
                 <option value="contrast">Contrast</option>
             </select>
         </div>
-    </div>
 
-    <div class="tabs" id="main-tabs">
-        <div class="tab active" data-tab="overview">Overview</div>
-        <div class="tab" data-tab="sessions">Sessions</div>
-        <div class="tab" data-tab="tools">Tools & Skills</div>
-        <div class="tab" data-tab="git">Git Costs</div>
-        <div class="tab" data-tab="insights">Insights</div>
-    </div>
-
-    <!-- OVERVIEW TAB -->
-    <div class="tab-content active" id="tab-overview">
-        <div class="container" id="overview-app">
-            <div class="loading"><div class="spinner"></div>Loading...</div>
-        </div>
-    </div>
-
-    <!-- SESSIONS TAB -->
-    <div class="tab-content" id="tab-sessions">
-        <div class="container" id="sessions-app"></div>
-    </div>
-
-    <!-- TOOLS TAB -->
-    <div class="tab-content" id="tab-tools">
-        <div class="container" id="tools-app"></div>
-    </div>
-
-    <!-- GIT TAB -->
-    <div class="tab-content" id="tab-git">
-        <div class="container" id="git-app"></div>
-    </div>
-
-    <!-- INSIGHTS TAB -->
-    <div class="tab-content" id="tab-insights">
-        <div class="container" id="insights-app"></div>
+        <div class="tab-content active" id="tab-overview"><div class="page" id="overview-app"><div class="loading"><div class="spinner"></div>Loading...</div></div></div>
+        <div class="tab-content" id="tab-sessions"><div class="page" id="sessions-app"></div></div>
+        <div class="tab-content" id="tab-tools"><div class="page" id="tools-app"></div></div>
+        <div class="tab-content" id="tab-project"><div class="page" id="project-app"></div></div>
+        <div class="tab-content" id="tab-git"><div class="page" id="git-app"></div></div>
+        <div class="tab-content" id="tab-insights"><div class="page" id="insights-app"></div></div>
     </div>
 
     <!-- Settings Modal -->
@@ -220,7 +284,7 @@
                 <option value="team">Team - Custom rate</option>
             </select>
             <div id="custom-rate-row" style="display:none">
-                <label>Custom Monthly Rate ($)</label>
+                <label>Monthly Rate ($)</label>
                 <input type="number" id="setting-rate" placeholder="e.g. 150" />
             </div>
             <div class="modal-actions">
@@ -233,599 +297,436 @@
 
 <script>
 // ── Globals ──────────────────────────────────────
-const COLORS = { blue:'#4f8ff7', purple:'#a855f7', green:'#22c55e', orange:'#f59e0b', red:'#ef4444', cyan:'#06b6d4', pink:'#ec4899', indigo:'#6366f1', lime:'#84cc16', amber:'#d97706', teal:'#14b8a6', rose:'#f43f5e' };
-const PALETTE = Object.values(COLORS);
-const PLAN_RATES = { pro_20:20, max_100:100, max_200:200 };
-let currentData = null;
-let charts = {};
-let dateFilter = {};
+const COLORS={blue:'#4f8ff7',purple:'#a855f7',green:'#22c55e',orange:'#f59e0b',red:'#ef4444',cyan:'#06b6d4',pink:'#ec4899',indigo:'#6366f1',lime:'#84cc16',amber:'#d97706',teal:'#14b8a6',rose:'#f43f5e'};
+const PALETTE=Object.values(COLORS);
+const PLAN_RATES={pro_20:20,max_100:100,max_200:200};
+let currentData=null,charts={},dateFilter={};
 
 // ── Formatters ───────────────────────────────────
 function fmt(n,d=0){if(n>=1e9)return(n/1e9).toFixed(1)+'B';if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return n.toFixed(d);}
-function fmtCost(n){return'$'+n.toFixed(2);}
-function fmtTokens(n){if(n>=1e6)return(n/1e6).toFixed(2)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return n.toString();}
+function fmtCost(n){return'$'+(n||0).toFixed(2);}
+function fmtTokens(n){if(n>=1e6)return(n/1e6).toFixed(2)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return String(n||0);}
 function fmtDate(s){return new Date(s).toLocaleDateString('en-US',{month:'short',day:'numeric'});}
 function fmtDateTime(s){if(!s)return'-';return new Date(s).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}
 
-// ── Chart defaults ───────────────────────────────
-Chart.defaults.color='#8b8fa3';Chart.defaults.borderColor='rgba(42,45,62,0.5)';
-Chart.defaults.font.family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
-Chart.defaults.font.size=11;Chart.defaults.plugins.legend.labels.usePointStyle=true;
-Chart.defaults.plugins.legend.labels.pointStyleWidth=8;Chart.defaults.plugins.legend.labels.padding=12;
+// ── Chart config ─────────────────────────────────
+Chart.defaults.color='#8b8fa3';Chart.defaults.borderColor='rgba(42,45,62,0.4)';
+Chart.defaults.font.family="'Fira Code','SF Mono',monospace";Chart.defaults.font.size=11;
+Chart.defaults.plugins.legend.labels.usePointStyle=true;Chart.defaults.plugins.legend.labels.pointStyleWidth=8;
+Chart.defaults.plugins.legend.labels.padding=12;
+const gridColor='rgba(42,45,62,0.25)';
 
-// ── Tabs ─────────────────────────────────────────
-document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
-        if (tab.dataset.tab === 'sessions' && currentData) renderSessions();
-        if (tab.dataset.tab === 'tools' && currentData) renderTools();
-        if (tab.dataset.tab === 'git') renderGit();
-        if (tab.dataset.tab === 'insights') renderInsights();
+// ── Navigation ───────────────────────────────────
+const navItems=document.querySelectorAll('.nav-item[data-tab]');
+const tabContents=document.querySelectorAll('.tab-content');
+const pageTitle=document.getElementById('page-title');
+navItems.forEach(item=>{
+    item.addEventListener('click',()=>{
+        navItems.forEach(n=>n.classList.remove('active'));
+        tabContents.forEach(t=>t.classList.remove('active'));
+        item.classList.add('active');
+        const tab=item.dataset.tab;
+        document.getElementById('tab-'+tab).classList.add('active');
+        pageTitle.textContent=item.textContent.trim();
+        if(tab==='sessions'&&currentData)renderSessions();
+        if(tab==='tools'&&currentData)renderTools();
+        if(tab==='git')renderGit();
+        if(tab==='project')renderProjectPicker();
+        if(tab==='insights')renderInsights();
     });
 });
 
 // ── Theme ────────────────────────────────────────
-function setTheme(t) { document.documentElement.setAttribute('data-theme', t); localStorage.setItem('radar-theme', t); }
-const saved = localStorage.getItem('radar-theme'); if (saved) { setTheme(saved); document.getElementById('theme-select').value = saved; }
+function setTheme(t){document.documentElement.setAttribute('data-theme',t);localStorage.setItem('radar-theme',t);}
+const savedTheme=localStorage.getItem('radar-theme');if(savedTheme){setTheme(savedTheme);document.getElementById('theme-select').value=savedTheme;}
 
 // ── Date Filter ──────────────────────────────────
-function applyDateFilter() { dateFilter.startDate = document.getElementById('start-date').value || undefined; dateFilter.endDate = document.getElementById('end-date').value || undefined; loadAndRender(); }
-function clearDateFilter() { dateFilter = {}; document.getElementById('start-date').value = ''; document.getElementById('end-date').value = ''; loadAndRender(); }
+function applyDateFilter(){dateFilter.startDate=document.getElementById('start-date').value||undefined;dateFilter.endDate=document.getElementById('end-date').value||undefined;loadAndRender();}
+function clearDateFilter(){dateFilter={};document.getElementById('start-date').value='';document.getElementById('end-date').value='';loadAndRender();}
 
 // ── Toast / Settings ─────────────────────────────
-function showToast(m) { const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000); }
-async function openSettings() { const r=await fetch('/api/config'); const{config}=await r.json(); document.getElementById('setting-plan').value=config.plan||'max_100'; document.getElementById('setting-rate').value=config.monthlyRate||''; toggleCustomRate(); document.getElementById('settings-modal').classList.add('open'); }
-function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
-function toggleCustomRate() { document.getElementById('custom-rate-row').style.display=document.getElementById('setting-plan').value==='team'?'block':'none'; }
+function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+async function openSettings(){const r=await fetch('/api/config');const{config}=await r.json();document.getElementById('setting-plan').value=config.plan||'max_100';document.getElementById('setting-rate').value=config.monthlyRate||'';toggleCustomRate();document.getElementById('settings-modal').classList.add('open');}
+function closeSettings(){document.getElementById('settings-modal').classList.remove('open');}
+function toggleCustomRate(){document.getElementById('custom-rate-row').style.display=document.getElementById('setting-plan').value==='team'?'block':'none';}
 document.getElementById('settings-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeSettings();});
-async function saveSettings() { const plan=document.getElementById('setting-plan').value; const rate=plan==='team'?parseFloat(document.getElementById('setting-rate').value)||0:PLAN_RATES[plan]||100; await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plan,monthlyRate:rate})}); closeSettings(); showToast('Saved'); loadAndRender(); }
+async function saveSettings(){const plan=document.getElementById('setting-plan').value;const rate=plan==='team'?parseFloat(document.getElementById('setting-rate').value)||0:PLAN_RATES[plan]||100;await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plan,monthlyRate:rate})});closeSettings();showToast('Settings saved');loadAndRender();}
 
-// ── Export ────────────────────────────────────────
-function exportData(format) {
-    const params = new URLSearchParams(dateFilter);
-    window.open('/api/export/' + format + '?' + params.toString());
-}
+function exportData(f){const p=new URLSearchParams(dateFilter);window.open('/api/export/'+f+'?'+p.toString());}
+async function regenerate(){const b=document.getElementById('btn-regen');b.disabled=true;try{await fetch('/api/regenerate',{method:'POST'});await loadAndRender();showToast('Data refreshed');}finally{b.disabled=false;}}
 
-// ── Regenerate ───────────────────────────────────
-async function regenerate() { const btn=document.getElementById('btn-regen'); btn.disabled=true; try{ await fetch('/api/regenerate',{method:'POST'}); await loadAndRender(); showToast('Refreshed'); }finally{btn.disabled=false;} }
+// ── Data ─────────────────────────────────────────
+async function loadData(){const p=new URLSearchParams(dateFilter);return(await fetch('/api/data?'+p)).json();}
+async function loadAndRender(){currentData=await loadData();renderOverview(currentData);}
+function destroyCharts(){Object.values(charts).forEach(c=>c.destroy());charts={};}
 
-// ── Data Loading ─────────────────────────────────
-async function loadData() {
-    const params = new URLSearchParams(dateFilter);
-    const r = await fetch('/api/data?' + params.toString());
-    return r.json();
-}
-
-async function loadAndRender() {
-    currentData = await loadData();
-    renderOverview(currentData);
-}
-
-// ── Destroy old charts ───────────────────────────
-function destroyCharts() { Object.values(charts).forEach(c => c.destroy()); charts = {}; }
-
-// ── OVERVIEW TAB ─────────────────────────────────
-function renderOverview(data) {
+// ── OVERVIEW ─────────────────────────────────────
+function renderOverview(data){
     destroyCharts();
-    const app = document.getElementById('overview-app');
-    const s = data.summary;
-    const sub = data.subscription || {plan:'Max',monthlyRate:100,monthsActive:1,actualCost:100};
-    const apiVal = s.apiEquivalentCost || 0;
-    const roi = sub.actualCost > 0 ? (apiVal / sub.actualCost) : 0;
-    const cacheEff = s.totalTokens > 0 ? ((s.totalCacheRead / s.totalTokens)*100).toFixed(1) : 0;
+    const app=document.getElementById('overview-app');
+    const s=data.summary,sub=data.subscription||{plan:'Max',monthlyRate:100,monthsActive:1,actualCost:100};
+    const apiVal=s.apiEquivalentCost||0,roi=sub.actualCost>0?(apiVal/sub.actualCost):0;
+    const cacheEff=s.totalTokens>0?((s.totalCacheRead/s.totalTokens)*100).toFixed(1):0;
 
-    document.getElementById('header-meta').innerHTML = `<span class="live-dot"></span>Live` +
-        (s.firstSessionDate ? ` &middot; Since ${fmtDate(s.firstSessionDate)}` : '');
+    document.getElementById('sidebar-meta').innerHTML=`Live &middot; ${s.totalProjects} projects`;
 
-    app.innerHTML = `
-        <div class="kpi-grid">
-            <div class="kpi-card"><div class="kpi-label">Actual Cost (${sub.plan})</div><div class="kpi-value green">${fmtCost(sub.actualCost)}</div><div class="kpi-sub">${fmtCost(sub.monthlyRate)}/mo &times; ${sub.monthsActive}mo</div></div>
-            <div class="kpi-card"><div class="kpi-label">API Equivalent</div><div class="kpi-value blue">${fmtCost(apiVal)}</div><div class="kpi-sub">${fmtCost(s.totalMessages>0?apiVal/s.totalMessages:0)}/msg</div></div>
-            <div class="kpi-card"><div class="kpi-label">ROI</div><div class="kpi-value purple">${roi.toFixed(1)}x</div><div class="kpi-sub">value vs paid</div></div>
-            <div class="kpi-card"><div class="kpi-label">Tokens</div><div class="kpi-value cyan">${fmtTokens(s.totalTokens)}</div><div class="kpi-sub">${fmtTokens(s.totalInputTokens)} in / ${fmtTokens(s.totalOutputTokens)} out</div></div>
-            <div class="kpi-card"><div class="kpi-label">Messages</div><div class="kpi-value orange">${fmt(s.totalMessages)}</div><div class="kpi-sub">${s.totalProjects} projects &middot; ${s.totalSessions} sessions</div></div>
-            <div class="kpi-card"><div class="kpi-label">Cache Efficiency</div><div class="kpi-value green">${cacheEff}%</div><div class="kpi-sub">${fmtTokens(s.totalCacheRead)} reads</div></div>
-            <div class="kpi-card"><div class="kpi-label">Active Days</div><div class="kpi-value orange">${data.dailyUsage.length}</div><div class="kpi-sub">${fmtCost(sub.actualCost/Math.max(data.dailyUsage.length,1))}/day actual</div></div>
+    app.innerHTML=`
+        <div class="hero-kpis">
+            <div class="hero-card"><div class="accent-line" style="background:var(--green)"></div><div class="label">You Paid (${escHtml(sub.plan)})</div><div class="value" style="color:var(--green)">${fmtCost(sub.actualCost)}</div><div class="sub">${fmtCost(sub.monthlyRate)}/mo &times; ${sub.monthsActive} months</div></div>
+            <div class="hero-card"><div class="accent-line" style="background:var(--blue)"></div><div class="label">API Equivalent Value</div><div class="value" style="color:var(--blue)">${fmtCost(apiVal)}</div><div class="sub">${fmtCost(s.totalMessages>0?apiVal/s.totalMessages:0)} per message</div></div>
+            <div class="hero-card"><div class="accent-line" style="background:var(--purple)"></div><div class="label">Return on Investment</div><div class="value" style="color:var(--purple)">${roi.toFixed(1)}x</div><div class="sub">You got ${fmtCost(apiVal-sub.actualCost)} more value</div></div>
         </div>
-        <div class="grid-2">
-            <div class="chart-card"><h3>Daily API Value</h3><div class="chart-container tall"><canvas id="c-daily-cost"></canvas></div></div>
-            <div class="chart-card"><h3>Value by Project</h3><div class="chart-container tall"><canvas id="c-project-pie"></canvas></div></div>
+        <div class="stat-row">
+            <div class="stat-item"><div class="s-val" style="color:var(--cyan)">${fmtTokens(s.totalTokens)}</div><div class="s-lbl">Total Tokens</div></div>
+            <div class="stat-item"><div class="s-val">${fmt(s.totalMessages)}</div><div class="s-lbl">Messages</div></div>
+            <div class="stat-item"><div class="s-val">${s.totalSessions}</div><div class="s-lbl">Sessions</div></div>
+            <div class="stat-item"><div class="s-val">${s.totalProjects}</div><div class="s-lbl">Projects</div></div>
+            <div class="stat-item"><div class="s-val" style="color:var(--green)">${cacheEff}%</div><div class="s-lbl">Cache Hit Rate</div></div>
+            <div class="stat-item"><div class="s-val">${data.dailyUsage.length}</div><div class="s-lbl">Active Days</div></div>
+            <div class="stat-item"><div class="s-val">${fmtTokens(s.totalInputTokens)}</div><div class="s-lbl">Input</div></div>
+            <div class="stat-item"><div class="s-val">${fmtTokens(s.totalOutputTokens)}</div><div class="s-lbl">Output</div></div>
         </div>
-        <div class="grid-eq">
-            <div class="chart-card"><h3>Daily Tokens (Input vs Output)</h3><div class="chart-container tall"><canvas id="c-daily-tokens"></canvas></div></div>
-            <div class="chart-card"><h3>Model Distribution</h3><div class="chart-container tall"><canvas id="c-model-dist"></canvas></div></div>
+        <div class="bento">
+            <div class="card span-8"><div class="card-header">Daily API Value</div><div class="chart-wrap chart-h-lg"><canvas id="c-daily-cost"></canvas></div></div>
+            <div class="card span-4"><div class="card-header">By Project</div><div class="chart-wrap chart-h-lg"><canvas id="c-project-pie"></canvas></div></div>
         </div>
-        <div class="grid-3">
-            <div class="chart-card"><h3>Cache Read vs Write</h3><div class="chart-container medium"><canvas id="c-cache"></canvas></div></div>
-            <div class="chart-card"><h3>Messages Per Day</h3><div class="chart-container medium"><canvas id="c-msgs-day"></canvas></div></div>
-            <div class="chart-card"><h3>Cost Per Model</h3><div class="chart-container medium"><canvas id="c-model-cost"></canvas></div></div>
+        <div class="bento">
+            <div class="card span-6"><div class="card-header">Tokens (Input vs Output)</div><div class="chart-wrap chart-h-md"><canvas id="c-daily-tokens"></canvas></div></div>
+            <div class="card span-6"><div class="card-header">Model Distribution</div><div class="chart-wrap chart-h-md"><canvas id="c-model-dist"></canvas></div></div>
         </div>
-        <div class="grid-2">
-            <div class="chart-card full-width"><h3>Daily Tokens by Project</h3><div class="chart-container" style="height:${Math.max(280,data.projects.length*12)}px"><canvas id="c-proj-daily"></canvas></div></div>
+        <div class="bento">
+            <div class="card span-4"><div class="card-header">Cache Read / Write</div><div class="chart-wrap chart-h-sm"><canvas id="c-cache"></canvas></div></div>
+            <div class="card span-4"><div class="card-header">Messages Per Day</div><div class="chart-wrap chart-h-sm"><canvas id="c-msgs-day"></canvas></div></div>
+            <div class="card span-4"><div class="card-header">Cost Per Model</div><div class="chart-wrap chart-h-sm"><canvas id="c-model-cost"></canvas></div></div>
         </div>
-        <div class="grid-2">
-            <div class="chart-card full-width"><h3>API Value by Project</h3><div class="chart-container" style="height:${Math.max(250,data.projects.length*28)}px"><canvas id="c-proj-bar"></canvas></div></div>
+        <div class="bento">
+            <div class="card span-12"><div class="card-header">Daily Tokens by Project</div><div class="chart-wrap" style="height:${Math.max(240,data.projects.length*14)}px"><canvas id="c-proj-daily"></canvas></div></div>
         </div>
-        <div class="grid-2">
-            <div class="chart-card full-width"><h3>Cumulative API Value</h3><div class="chart-container tall"><canvas id="c-cumulative"></canvas></div></div>
+        <div class="bento">
+            <div class="card span-12"><div class="card-header">Cumulative Value</div><div class="chart-wrap chart-h-md"><canvas id="c-cumulative"></canvas></div></div>
         </div>
-        <div class="table-card"><h3>Project Breakdown</h3>
-            <table><thead><tr>
-                <th>Project</th><th class="text-right">API Value</th><th class="text-right">Messages</th>
-                <th class="text-right">Sessions</th><th class="text-right">Input</th><th class="text-right">Output</th>
-                <th class="text-right">Cache Read</th><th class="text-right">Cache Write</th>
-                <th class="text-right" style="min-width:100px">Share</th><th class="text-right">Last Active</th>
-            </tr></thead><tbody id="proj-tbody"></tbody></table>
+        <div class="bento">
+            <div class="card span-12"><div class="card-header">Project Breakdown</div>
+                <div style="overflow-x:auto"><table><thead><tr>
+                    <th>Project</th><th class="text-right">API Value</th><th class="text-right">Msgs</th><th class="text-right">Sessions</th>
+                    <th class="text-right">Input</th><th class="text-right">Output</th><th class="text-right">Cache R</th><th class="text-right">Cache W</th>
+                    <th style="min-width:80px" class="text-right">Share</th><th class="text-right">Last</th>
+                </tr></thead><tbody id="proj-tbody"></tbody></table></div>
+            </div>
         </div>
-        <div class="table-card"><h3>Model Breakdown</h3>
-            <table><thead><tr>
-                <th>Model</th><th class="text-right">Messages</th><th class="text-right">Input</th>
-                <th class="text-right">Output</th><th class="text-right">Cache Read</th>
-                <th class="text-right">Cache Write</th><th class="text-right">API Value</th><th class="text-right">Share</th>
-            </tr></thead><tbody id="model-tbody"></tbody></table>
+        <div class="bento">
+            <div class="card span-12"><div class="card-header">Model Breakdown</div>
+                <div style="overflow-x:auto"><table><thead><tr>
+                    <th>Model</th><th class="text-right">Messages</th><th class="text-right">Input</th><th class="text-right">Output</th>
+                    <th class="text-right">Cache R</th><th class="text-right">Cache W</th><th class="text-right">Value</th><th class="text-right">Share</th>
+                </tr></thead><tbody id="model-tbody"></tbody></table></div>
+            </div>
         </div>`;
 
-    // Render all charts
-    const dl = data.dailyUsage; const p = data.projects; const mu = data.modelUsage;
-    const dates = dl.map(d=>fmtDate(d.date));
+    const dl=data.dailyUsage,p=data.projects,mu=data.modelUsage;
+    const dates=dl.map(d=>fmtDate(d.date));
 
-    // Daily cost bar
-    charts.dailyCost = new Chart(el('c-daily-cost'),{type:'bar',data:{labels:dates,datasets:[{label:'API Value ($)',data:dl.map(d=>d.cost),backgroundColor:COLORS.blue+'99',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtCost(c.parsed.y)}}},scales:{y:{beginAtZero:true,ticks:{callback:v=>'$'+fmt(v)},grid:{color:'rgba(42,45,62,0.3)'}},x:{grid:{display:false}}}}});
+    charts.dailyCost=new Chart(el('c-daily-cost'),{type:'bar',data:{labels:dates,datasets:[{data:dl.map(d=>d.cost),backgroundColor:COLORS.blue+'88',borderRadius:3,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtCost(c.parsed.y)}}},scales:{y:{beginAtZero:true,ticks:{callback:v=>'$'+fmt(v)},grid:{color:gridColor}},x:{grid:{display:false}}}}});
 
-    // Project pie
-    const top8=p.slice(0,8); const otherCost=p.slice(8).reduce((s,x)=>s+x.totalCost,0);
-    const pieLabels=[...top8.map(x=>x.name)]; const pieData=[...top8.map(x=>x.totalCost)];
-    if(otherCost>0){pieLabels.push('Others');pieData.push(otherCost);}
-    charts.projPie = new Chart(el('c-project-pie'),{type:'doughnut',data:{labels:pieLabels,datasets:[{data:pieData,backgroundColor:PALETTE.slice(0,pieLabels.length),borderColor:getComputedStyle(document.body).getPropertyValue('--bg-card').trim(),borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:10}}},tooltip:{callbacks:{label:c=>`${c.label}: ${fmtCost(c.parsed)} (${(c.parsed/apiVal*100).toFixed(1)}%)`}}}}});
+    const top8=p.slice(0,8),otherCost=p.slice(8).reduce((s,x)=>s+x.totalCost,0);
+    const pieL=[...top8.map(x=>x.name)],pieD=[...top8.map(x=>x.totalCost)];
+    if(otherCost>0){pieL.push('Others');pieD.push(otherCost);}
+    charts.projPie=new Chart(el('c-project-pie'),{type:'doughnut',data:{labels:pieL,datasets:[{data:pieD,backgroundColor:PALETTE.slice(0,pieL.length),borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'right',labels:{font:{size:10},padding:8}}}}});
 
-    // Daily tokens stacked
-    charts.dailyTokens = new Chart(el('c-daily-tokens'),{type:'bar',data:{labels:dates,datasets:[{label:'Input',data:dl.map(d=>d.inputTokens),backgroundColor:COLORS.blue+'99',stack:'s'},{label:'Output',data:dl.map(d=>d.outputTokens),backgroundColor:COLORS.purple+'99',stack:'s'}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{stacked:true,beginAtZero:true,ticks:{callback:v=>fmtTokens(v)},grid:{color:'rgba(42,45,62,0.3)'}},x:{stacked:true,grid:{display:false}}}}});
+    charts.dailyTokens=new Chart(el('c-daily-tokens'),{type:'bar',data:{labels:dates,datasets:[{label:'Input',data:dl.map(d=>d.inputTokens),backgroundColor:COLORS.blue+'88',stack:'s'},{label:'Output',data:dl.map(d=>d.outputTokens),backgroundColor:COLORS.purple+'88',stack:'s'}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{stacked:true,beginAtZero:true,ticks:{callback:v=>fmtTokens(v)},grid:{color:gridColor}},x:{stacked:true,grid:{display:false}}}}});
 
-    // Model distribution
     const models=Object.entries(mu).filter(([k])=>k!=='<synthetic>');
-    charts.modelDist = new Chart(el('c-model-dist'),{type:'doughnut',data:{labels:models.map(([k])=>k.replace('claude-','')),datasets:[{data:models.map(([,v])=>v.messages),backgroundColor:PALETTE,borderColor:getComputedStyle(document.body).getPropertyValue('--bg-card').trim(),borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:10}}}}}});
+    charts.modelDist=new Chart(el('c-model-dist'),{type:'doughnut',data:{labels:models.map(([k])=>k.replace('claude-','')),datasets:[{data:models.map(([,v])=>v.messages),backgroundColor:PALETTE,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{position:'right',labels:{font:{size:10},padding:8}}}}});
 
-    // Cache
-    charts.cache = new Chart(el('c-cache'),{type:'bar',data:{labels:dates,datasets:[{label:'Cache Read',data:dl.map(d=>d.cacheRead),backgroundColor:COLORS.green+'80',stack:'s'},{label:'Cache Write',data:dl.map(d=>d.cacheWrite),backgroundColor:COLORS.orange+'80',stack:'s'}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{stacked:true,beginAtZero:true,ticks:{callback:v=>fmtTokens(v)},grid:{color:'rgba(42,45,62,0.3)'}},x:{stacked:true,grid:{display:false}}}}});
+    charts.cache=new Chart(el('c-cache'),{type:'bar',data:{labels:dates,datasets:[{label:'Read',data:dl.map(d=>d.cacheRead),backgroundColor:COLORS.green+'70',stack:'s'},{label:'Write',data:dl.map(d=>d.cacheWrite),backgroundColor:COLORS.orange+'70',stack:'s'}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{stacked:true,beginAtZero:true,ticks:{callback:v=>fmtTokens(v)},grid:{color:gridColor}},x:{stacked:true,grid:{display:false}}}}});
 
-    // Messages/day
-    charts.msgsDay = new Chart(el('c-msgs-day'),{type:'line',data:{labels:dates,datasets:[{label:'Messages',data:dl.map(d=>d.messages),borderColor:COLORS.purple,backgroundColor:COLORS.purple+'20',fill:true,tension:0.3,pointRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'rgba(42,45,62,0.3)'}},x:{grid:{display:false}}}}});
+    charts.msgsDay=new Chart(el('c-msgs-day'),{type:'line',data:{labels:dates,datasets:[{data:dl.map(d=>d.messages),borderColor:COLORS.purple,backgroundColor:COLORS.purple+'15',fill:true,tension:.4,pointRadius:1.5,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:gridColor}},x:{grid:{display:false}}}}});
 
-    // Model cost bar
     const mSorted=models.sort(([,a],[,b])=>b.cost-a.cost);
-    charts.modelCost = new Chart(el('c-model-cost'),{type:'bar',data:{labels:mSorted.map(([k])=>k.replace('claude-','')),datasets:[{data:mSorted.map(([,v])=>v.cost),backgroundColor:PALETTE,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtCost(c.parsed.x)}}},scales:{x:{beginAtZero:true,ticks:{callback:v=>'$'+fmt(v)},grid:{color:'rgba(42,45,62,0.3)'}},y:{grid:{display:false}}}}});
+    charts.modelCost=new Chart(el('c-model-cost'),{type:'bar',data:{labels:mSorted.map(([k])=>k.replace('claude-','')),datasets:[{data:mSorted.map(([,v])=>v.cost),backgroundColor:PALETTE,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtCost(c.parsed.x)}}},scales:{x:{beginAtZero:true,ticks:{callback:v=>'$'+fmt(v)},grid:{color:gridColor}},y:{grid:{display:false}}}}});
 
-    // Project daily tokens stacked
-    const pdt = data.projectDailyTokens || [];
+    const pdt=data.projectDailyTokens||[];
     const allDates=[...new Set(pdt.map(r=>r.date))].sort();
-    const topProj=[...new Set(p.slice(0,10).map(x=>x.name))];
-    const pdDatasets=topProj.map((name,i)=>{const map={};pdt.filter(r=>r.project_name===name).forEach(r=>map[r.date]=r.tokens);return{label:name,data:allDates.map(d=>map[d]||0),backgroundColor:PALETTE[i]+'90',borderColor:PALETTE[i],borderWidth:1,fill:true,stack:'s'};});
-    const restMap={};pdt.filter(r=>!topProj.includes(r.project_name)).forEach(r=>restMap[r.date]=(restMap[r.date]||0)+r.tokens);
-    if(Object.keys(restMap).length)pdDatasets.push({label:'Others',data:allDates.map(d=>restMap[d]||0),backgroundColor:'#5c607840',borderColor:'#5c6078',fill:true,stack:'s'});
-    charts.projDaily = new Chart(el('c-proj-daily'),{type:'bar',data:{labels:allDates.map(fmtDate),datasets:pdDatasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:10}}}},scales:{y:{stacked:true,beginAtZero:true,ticks:{callback:v=>fmtTokens(v)},grid:{color:'rgba(42,45,62,0.3)'}},x:{stacked:true,grid:{display:false}}}}});
+    const topProj=[...new Set(p.slice(0,8).map(x=>x.name))];
+    const pdDS=topProj.map((name,i)=>{const map={};pdt.filter(r=>r.project_name===name).forEach(r=>map[r.date]=r.tokens);return{label:name,data:allDates.map(d=>map[d]||0),backgroundColor:PALETTE[i]+'80',stack:'s'};});
+    charts.projDaily=new Chart(el('c-proj-daily'),{type:'bar',data:{labels:allDates.map(fmtDate),datasets:pdDS},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:10}}}},scales:{y:{stacked:true,beginAtZero:true,ticks:{callback:v=>fmtTokens(v)},grid:{color:gridColor}},x:{stacked:true,grid:{display:false}}}}});
 
-    // Project bar
-    charts.projBar = new Chart(el('c-proj-bar'),{type:'bar',data:{labels:p.map(x=>x.name),datasets:[{data:p.map(x=>x.totalCost),backgroundColor:PALETTE.map(c=>c+'99'),borderColor:PALETTE,borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>[`Value: ${fmtCost(p[c.dataIndex].totalCost)}`,`Msgs: ${fmt(p[c.dataIndex].totalMessages)}`]}}},scales:{x:{beginAtZero:true,ticks:{callback:v=>'$'+fmt(v)},grid:{color:'rgba(42,45,62,0.3)'}},y:{grid:{display:false},ticks:{font:{size:10}}}}}});
+    let cum=0;const cumD=dl.map(d=>{cum+=d.cost;return cum;});
+    charts.cumulative=new Chart(el('c-cumulative'),{type:'line',data:{labels:dates,datasets:[{data:cumD,borderColor:COLORS.red,backgroundColor:COLORS.red+'10',fill:true,tension:.3,pointRadius:1.5,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{callback:v=>'$'+fmt(v)},grid:{color:gridColor}},x:{grid:{display:false}}}}});
 
-    // Cumulative
-    let cum=0; const cumData=dl.map(d=>{cum+=d.cost;return cum;});
-    charts.cumulative = new Chart(el('c-cumulative'),{type:'line',data:{labels:dates,datasets:[{label:'Cumulative',data:cumData,borderColor:COLORS.red,backgroundColor:COLORS.red+'15',fill:true,tension:0.3,pointRadius:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{callback:v=>'$'+fmt(v)},grid:{color:'rgba(42,45,62,0.3)'}},x:{grid:{display:false}}}}});
-
-    // Project table
     const maxCost=p[0]?.totalCost||1;
-    document.getElementById('proj-tbody').innerHTML=p.map(x=>`<tr>
+    document.getElementById('proj-tbody').innerHTML=p.map(x=>`<tr onclick="navTo('project');renderProjectDetail(${x.id})" style="cursor:pointer">
         <td><div class="project-name">${escHtml(x.name)}</div><div class="project-path" title="${escAttr(x.path)}">${escHtml(x.path)}</div></td>
         <td class="text-right mono">${fmtCost(x.totalCost)}</td><td class="text-right mono">${fmt(x.totalMessages)}</td>
         <td class="text-right mono">${x.sessionCount}</td><td class="text-right mono">${fmtTokens(x.totalInputTokens)}</td>
         <td class="text-right mono">${fmtTokens(x.totalOutputTokens)}</td><td class="text-right mono">${fmtTokens(x.totalCacheRead)}</td>
         <td class="text-right mono">${fmtTokens(x.totalCacheWrite)}</td>
-        <td class="text-right"><div class="cost-bar"><div class="cost-bar-fill" style="width:${(x.totalCost/maxCost*100).toFixed(1)}%"></div></div><div style="font-size:10px;color:var(--text-muted)">${(x.totalCost/apiVal*100).toFixed(1)}%</div></td>
-        <td class="text-right mono" style="font-size:10px">${x.lastActivity?fmtDate(x.lastActivity):'-'}</td>
+        <td class="text-right"><div class="bar-track"><div class="bar-fill" style="width:${(x.totalCost/maxCost*100).toFixed(1)}%"></div></div><div style="font-size:10px;color:var(--text-3);margin-top:2px">${(x.totalCost/apiVal*100).toFixed(1)}%</div></td>
+        <td class="text-right mono" style="font-size:10px;color:var(--text-2)">${x.lastActivity?fmtDate(x.lastActivity):'-'}</td>
     </tr>`).join('');
 
-    // Model table
     document.getElementById('model-tbody').innerHTML=models.map(([name,m])=>`<tr>
-        <td class="mono" style="color:var(--accent-blue)">${name}</td><td class="text-right mono">${fmt(m.messages)}</td>
+        <td class="mono" style="color:var(--blue)">${escHtml(name)}</td><td class="text-right mono">${fmt(m.messages)}</td>
         <td class="text-right mono">${fmtTokens(m.inputTokens)}</td><td class="text-right mono">${fmtTokens(m.outputTokens)}</td>
         <td class="text-right mono">${fmtTokens(m.cacheRead)}</td><td class="text-right mono">${fmtTokens(m.cacheWrite)}</td>
         <td class="text-right mono">${fmtCost(m.cost)}</td><td class="text-right mono">${(m.cost/apiVal*100).toFixed(1)}%</td>
     </tr>`).join('');
 }
 
-// ── SESSIONS TAB ─────────────────────────────────
-async function renderSessions() {
+// ── SESSIONS ─────────────────────────────────────
+async function renderSessions(){
     const app=document.getElementById('sessions-app');
     app.innerHTML='<div class="loading"><div class="spinner"></div>Loading sessions...</div>';
     const params=new URLSearchParams({limit:'100',...dateFilter});
     const sessions=await(await fetch('/api/sessions?'+params)).json();
-
-    // Build Gantt timeline data
-    const ganttSessions = sessions.filter(s => s.first_timestamp && s.last_timestamp).slice(0, 40);
-    const projectNames = [...new Set(ganttSessions.map(s => s.project_name))];
-    const projectColorMap = {};
-    projectNames.forEach((n, i) => projectColorMap[n] = PALETTE[i % PALETTE.length]);
+    const gantt=sessions.filter(s=>s.first_timestamp&&s.last_timestamp).slice(0,30);
+    const pColors={};[...new Set(gantt.map(s=>s.project_name))].forEach((n,i)=>pColors[n]=PALETTE[i%PALETTE.length]);
+    const allS=gantt.map(s=>new Date(s.first_timestamp).getTime()),allE=gantt.map(s=>new Date(s.last_timestamp).getTime());
+    const rMin=Math.min(...allS)||0,rMax=Math.max(...allE)||1,range=rMax-rMin||1,minBar=range*.015;
 
     app.innerHTML=`
-        ${ganttSessions.length > 0 ? `<div class="chart-card" style="margin-bottom:12px"><h3>Session Timeline</h3>
-            <div class="chart-container" style="height:${Math.max(250, ganttSessions.length * 36 + 60)}px"><canvas id="c-gantt"></canvas></div></div>` : ''}
-        <div class="table-card"><h3>Sessions (${sessions.length})</h3>
-        <table><thead><tr><th>Project</th><th>Branch</th><th class="text-right">Messages</th><th class="text-right">API Value</th>
-        <th class="text-right">Input</th><th class="text-right">Output</th><th class="text-right">Started</th><th class="text-right">Last Active</th></tr></thead>
-        <tbody>${sessions.map(s=>`<tr class="clickable" onclick="showSession('${escAttr(s.id)}')">
+        ${gantt.length?`<div class="card" style="margin-bottom:16px"><div class="card-header">Session Timeline</div><div class="chart-wrap" style="height:${Math.max(200,gantt.length*32+40)}px"><canvas id="c-gantt"></canvas></div></div>`:''}
+        <div class="card"><div class="card-header">Sessions (${sessions.length})</div>
+        <div style="overflow-x:auto"><table><thead><tr><th>Project</th><th>Branch</th><th class="text-right">Msgs</th><th class="text-right">Value</th><th class="text-right">Started</th><th class="text-right">Last Active</th></tr></thead>
+        <tbody>${sessions.map(s=>`<tr onclick="showSession('${escAttr(s.id)}')">
             <td class="project-name">${escHtml(s.project_name)}</td><td class="mono" style="font-size:10px">${escHtml(s.git_branch||'-')}</td>
-            <td class="text-right mono">${s.message_count}</td><td class="text-right mono">${fmtCost(s.total_cost||0)}</td>
-            <td class="text-right mono">${fmtTokens(s.total_input_tokens||0)}</td><td class="text-right mono">${fmtTokens(s.total_output_tokens||0)}</td>
+            <td class="text-right mono">${s.message_count}</td><td class="text-right mono">${fmtCost(s.total_cost)}</td>
             <td class="text-right mono" style="font-size:10px">${fmtDateTime(s.first_timestamp)}</td>
             <td class="text-right mono" style="font-size:10px">${fmtDateTime(s.last_timestamp)}</td>
-        </tr>`).join('')}</tbody></table></div>`;
+        </tr>`).join('')}</tbody></table></div></div>`;
 
-    // Render Gantt chart
-    if (ganttSessions.length > 0) {
-        // Calculate minimum visible bar width as % of total range
-        const allStarts = ganttSessions.map(s => new Date(s.first_timestamp).getTime());
-        const allEnds = ganttSessions.map(s => new Date(s.last_timestamp).getTime());
-        const rangeMin = Math.min(...allStarts);
-        const rangeMax = Math.max(...allEnds);
-        const totalRange = rangeMax - rangeMin || 1;
-        const minBarWidth = totalRange * 0.015; // Min 1.5% of visible range
-
-        const labels = ganttSessions.map((s, i) => {
-            const dur = ((new Date(s.last_timestamp) - new Date(s.first_timestamp)) / 60000);
-            const durStr = dur >= 60 ? (dur/60).toFixed(1) + 'h' : Math.round(dur) + 'm';
-            return s.project_name + ' (' + durStr + ')';
-        });
-
-        const data = ganttSessions.map(s => {
-            const start = new Date(s.first_timestamp).getTime();
-            const end = new Date(s.last_timestamp).getTime();
-            return [start, Math.max(end, start + minBarWidth)];
-        });
-
-        new Chart(el('c-gantt'), {
-            type: 'bar',
-            data: {
-                labels,
-                datasets: [{
-                    data: data,
-                    backgroundColor: ganttSessions.map(s => (projectColorMap[s.project_name] || COLORS.blue) + '90'),
-                    borderColor: ganttSessions.map(s => projectColorMap[s.project_name] || COLORS.blue),
-                    borderWidth: 1,
-                    borderRadius: 4,
-                    borderSkipped: false,
-                    barPercentage: 0.7,
-                    categoryPercentage: 0.85,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                indexAxis: 'y',
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: (ctx) => {
-                                const s = ganttSessions[ctx.dataIndex];
-                                const dur = ((new Date(s.last_timestamp) - new Date(s.first_timestamp)) / 60000);
-                                const durStr = dur >= 60 ? (dur/60).toFixed(1) + ' hours' : Math.round(dur) + ' min';
-                                return [
-                                    `${fmtDateTime(s.first_timestamp)} → ${fmtDateTime(s.last_timestamp)}`,
-                                    `Duration: ${durStr}`,
-                                    `Messages: ${s.message_count} | ${fmtCost(s.total_cost || 0)}`
-                                ];
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: {
-                        type: 'linear',
-                        position: 'top',
-                        min: rangeMin - totalRange * 0.02,
-                        max: rangeMax + totalRange * 0.02,
-                        ticks: {
-                            callback: v => {
-                                const d = new Date(v);
-                                return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-                            },
-                            maxTicksLimit: 8,
-                        },
-                        grid: { color: 'rgba(42,45,62,0.3)' }
-                    },
-                    y: {
-                        grid: { display: false },
-                        ticks: { font: { size: 10 } }
-                    }
-                }
-            }
-        });
+    if(gantt.length){
+        const labels=gantt.map(s=>{const d=((new Date(s.last_timestamp)-new Date(s.first_timestamp))/6e4);return s.project_name+' ('+(d>=60?(d/60).toFixed(1)+'h':Math.round(d)+'m')+')';});
+        const barData=gantt.map(s=>{const st=new Date(s.first_timestamp).getTime(),en=new Date(s.last_timestamp).getTime();return[st,Math.max(en,st+minBar)];});
+        new Chart(el('c-gantt'),{type:'bar',data:{labels,datasets:[{data:barData,backgroundColor:gantt.map(s=>(pColors[s.project_name]||COLORS.blue)+'80'),borderColor:gantt.map(s=>pColors[s.project_name]||COLORS.blue),borderWidth:1,borderRadius:4,borderSkipped:false,barPercentage:.65,categoryPercentage:.8}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const s=gantt[c.dataIndex];const d=((new Date(s.last_timestamp)-new Date(s.first_timestamp))/6e4);return[fmtDateTime(s.first_timestamp)+' -> '+fmtDateTime(s.last_timestamp),'Msgs: '+s.message_count+' | '+fmtCost(s.total_cost)];}}}},scales:{x:{type:'linear',position:'top',min:rMin-range*.02,max:rMax+range*.02,ticks:{callback:v=>{const d=new Date(v);return fmtDate(d)+' '+d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});},maxTicksLimit:6},grid:{color:gridColor}},y:{grid:{display:false},ticks:{font:{size:10}}}}}});
     }
 }
 
-async function showSession(id) {
+async function showSession(id){
     const app=document.getElementById('sessions-app');
-    app.innerHTML='<div class="loading"><div class="spinner"></div>Loading session...</div>';
-    const detail=await(await fetch('/api/sessions/'+id)).json();
-    const s=detail.session;
+    app.innerHTML='<div class="loading"><div class="spinner"></div></div>';
+    const det=await(await fetch('/api/sessions/'+id)).json();const s=det.session;
     app.innerHTML=`
-        <button class="btn back-btn" onclick="renderSessions()">&larr; Back</button>
-        <div class="kpi-grid" style="margin-bottom:16px">
-            <div class="kpi-card"><div class="kpi-label">Project</div><div class="kpi-value blue" style="font-size:16px">${s.project_name}</div><div class="kpi-sub">${s.project_path}</div></div>
-            <div class="kpi-card"><div class="kpi-label">Messages</div><div class="kpi-value purple">${s.message_count}</div></div>
-            <div class="kpi-card"><div class="kpi-label">API Value</div><div class="kpi-value green">${fmtCost(s.total_cost||0)}</div></div>
-            <div class="kpi-card"><div class="kpi-label">Duration</div><div class="kpi-value orange" style="font-size:14px">${fmtDateTime(s.first_timestamp)}<br>→ ${fmtDateTime(s.last_timestamp)}</div></div>
+        <button class="btn" onclick="renderSessions()" style="margin-bottom:16px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Back</button>
+        <div class="hero-kpis" style="margin-bottom:16px">
+            <div class="hero-card"><div class="accent-line" style="background:var(--blue)"></div><div class="label">Project</div><div class="value" style="font-size:18px;color:var(--blue)">${escHtml(s.project_name)}</div><div class="sub">${escHtml(s.project_path||'')}</div></div>
+            <div class="hero-card"><div class="accent-line" style="background:var(--purple)"></div><div class="label">Messages</div><div class="value" style="color:var(--purple)">${s.message_count}</div><div class="sub">${fmtCost(s.total_cost)} API value</div></div>
+            <div class="hero-card"><div class="accent-line" style="background:var(--orange)"></div><div class="label">Duration</div><div class="value" style="font-size:14px;color:var(--orange)">${fmtDateTime(s.first_timestamp)}<br>to ${fmtDateTime(s.last_timestamp)}</div></div>
         </div>
-        ${detail.subagents.length?`<div class="table-card"><h3>Subagents (${detail.subagents.length})</h3>
-            <table><thead><tr><th>Agent</th><th class="text-right">Messages</th><th class="text-right">API Value</th><th class="text-right">Tokens</th></tr></thead>
-            <tbody>${detail.subagents.map(a=>`<tr><td class="mono">${a.slug||a.agent_id}</td><td class="text-right mono">${a.message_count}</td>
-            <td class="text-right mono">${fmtCost(a.total_cost||0)}</td><td class="text-right mono">${fmtTokens((a.total_input_tokens||0)+(a.total_output_tokens||0))}</td></tr>`).join('')}</tbody></table></div>`:''}
-        ${detail.toolCalls.length?`<div class="table-card"><h3>Tool Usage</h3>
-            <table><thead><tr><th>Tool</th><th class="text-right">Calls</th></tr></thead>
-            <tbody>${detail.toolCalls.map(t=>`<tr><td class="mono">${t.tool_name}</td><td class="text-right mono">${t.count}</td></tr>`).join('')}</tbody></table></div>`:''}
-        <div class="table-card"><h3>Message Timeline (${detail.messages.length})</h3>
-            <div class="msg-timeline">${detail.messages.slice(0,500).map(m=>`
-                <div class="msg-item ${m.type}">
-                    <div class="msg-meta">${m.type}${m.model?' &middot; '+m.model:''}${m.cost?' &middot; '+fmtCost(m.cost):''}${m.has_tool_use?' &middot; 🔧':''} &middot; ${fmtDateTime(m.timestamp)}${m.agent_slug?' &middot; 🤖 '+m.agent_slug:''}</div>
-                    ${m.content_preview?`<div class="msg-preview">${escHtml(m.content_preview)}</div>`:''}
-                </div>`).join('')}
-                ${detail.messages.length>500?`<div style="padding:12px;color:var(--text-muted);font-size:12px">...and ${detail.messages.length-500} more messages</div>`:''}
-            </div></div>`;
+        ${det.subagents.length?`<div class="card" style="margin-bottom:16px"><div class="card-header">Subagents (${det.subagents.length})</div><table><thead><tr><th>Agent</th><th class="text-right">Msgs</th><th class="text-right">Value</th></tr></thead><tbody>${det.subagents.map(a=>`<tr><td class="mono">${escHtml(a.slug||a.agent_id)}</td><td class="text-right mono">${a.message_count}</td><td class="text-right mono">${fmtCost(a.total_cost)}</td></tr>`).join('')}</tbody></table></div>`:''}
+        ${det.toolCalls.length?`<div class="card" style="margin-bottom:16px"><div class="card-header">Tools Used</div><table><thead><tr><th>Tool</th><th class="text-right">Calls</th></tr></thead><tbody>${det.toolCalls.map(t=>`<tr><td class="mono">${escHtml(t.tool_name)}</td><td class="text-right mono">${t.count}</td></tr>`).join('')}</tbody></table></div>`:''}
+        <div class="card"><div class="card-header">Messages (${det.messages.length})</div>
+        <div class="msg-timeline">${det.messages.slice(0,500).map(m=>`<div class="msg-item ${m.type}"><div class="msg-meta">${m.type}${m.model?' / '+m.model:''}${m.cost?' / '+fmtCost(m.cost):''}${m.has_tool_use?' / tools':''}  ${fmtDateTime(m.timestamp)}${m.agent_slug?' / '+escHtml(m.agent_slug):''}</div>${m.content_preview?`<div class="msg-preview">${escHtml(m.content_preview)}</div>`:''}</div>`).join('')}${det.messages.length>500?`<div style="padding:12px;color:var(--text-3);font-size:12px">+ ${det.messages.length-500} more</div>`:''}</div></div>`;
 }
 
-// ── TOOLS TAB ────────────────────────────────────
-async function renderTools() {
+// ── TOOLS ────────────────────────────────────────
+async function renderTools(){
     const app=document.getElementById('tools-app');
-    app.innerHTML='<div class="loading"><div class="spinner"></div>Loading...</div>';
+    app.innerHTML='<div class="loading"><div class="spinner"></div></div>';
     const params=new URLSearchParams(dateFilter);
-    const tools=await(await fetch('/api/tools?'+params)).json();
-    const subagents=await(await fetch('/api/subagents?'+params)).json();
-
+    const[tools,subagents]=await Promise.all([fetch('/api/tools?'+params).then(r=>r.json()),fetch('/api/subagents?'+params).then(r=>r.json())]);
     app.innerHTML=`
-        <div class="grid-eq">
-            <div class="chart-card"><h3>Tool Usage</h3><div class="chart-container tall"><canvas id="c-tools"></canvas></div></div>
-            <div class="chart-card"><h3>Top Tools by Call Count</h3><div class="chart-container tall"><canvas id="c-tools-bar"></canvas></div></div>
+        <div class="bento">
+            <div class="card span-6"><div class="card-header">Tool Usage</div><div class="chart-wrap chart-h-md"><canvas id="c-tools"></canvas></div></div>
+            <div class="card span-6"><div class="card-header">Top Tools</div><div class="chart-wrap chart-h-md"><canvas id="c-tools-bar"></canvas></div></div>
         </div>
-        <div class="grid-eq">
-            <div class="table-card"><h3>All Tools (${tools.length})</h3>
-                <table><thead><tr><th>Tool</th><th class="text-right">Calls</th><th class="text-right">Sessions</th><th class="text-right">Projects</th></tr></thead>
-                <tbody>${tools.map(t=>`<tr><td class="mono">${t.tool_name}</td><td class="text-right mono">${fmt(t.count)}</td><td class="text-right mono">${t.sessions}</td><td class="text-right mono">${t.projects}</td></tr>`).join('')}</tbody></table></div>
-            <div class="table-card"><h3>Subagents (${subagents.length})</h3>
-                <table><thead><tr><th>Agent</th><th>Project</th><th class="text-right">Messages</th><th class="text-right">API Value</th></tr></thead>
-                <tbody>${subagents.slice(0,50).map(a=>`<tr><td class="mono">${escHtml(a.slug||a.agent_id)}</td><td class="project-name">${escHtml(a.project_name)}</td><td class="text-right mono">${a.message_count}</td><td class="text-right mono">${fmtCost(a.total_cost||0)}</td></tr>`).join('')}</tbody></table></div>
+        <div class="bento">
+            <div class="card span-6"><div class="card-header">All Tools (${tools.length})</div><div style="overflow-x:auto;max-height:400px;overflow-y:auto"><table><thead><tr><th>Tool</th><th class="text-right">Calls</th><th class="text-right">Sessions</th><th class="text-right">Projects</th></tr></thead><tbody>${tools.map(t=>`<tr><td class="mono">${escHtml(t.tool_name)}</td><td class="text-right mono">${fmt(t.count)}</td><td class="text-right mono">${t.sessions}</td><td class="text-right mono">${t.projects}</td></tr>`).join('')}</tbody></table></div></div>
+            <div class="card span-6"><div class="card-header">Subagents (${subagents.length})</div><div style="overflow-x:auto;max-height:400px;overflow-y:auto"><table><thead><tr><th>Agent</th><th>Project</th><th class="text-right">Msgs</th><th class="text-right">Value</th></tr></thead><tbody>${subagents.slice(0,50).map(a=>`<tr><td class="mono">${escHtml(a.slug||a.agent_id)}</td><td class="project-name">${escHtml(a.project_name)}</td><td class="text-right mono">${a.message_count}</td><td class="text-right mono">${fmtCost(a.total_cost)}</td></tr>`).join('')}</tbody></table></div></div>
         </div>`;
-
-    // Tool pie
-    const top10=tools.slice(0,10);
-    new Chart(el('c-tools'),{type:'doughnut',data:{labels:top10.map(t=>t.tool_name),datasets:[{data:top10.map(t=>t.count),backgroundColor:PALETTE}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:10}}}}}});
-
-    // Tool bar
-    new Chart(el('c-tools-bar'),{type:'bar',data:{labels:tools.slice(0,15).map(t=>t.tool_name),datasets:[{data:tools.slice(0,15).map(t=>t.count),backgroundColor:PALETTE,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:'rgba(42,45,62,0.3)'}},y:{grid:{display:false}}}}});
+    const t10=tools.slice(0,10);
+    new Chart(el('c-tools'),{type:'doughnut',data:{labels:t10.map(t=>t.tool_name),datasets:[{data:t10.map(t=>t.count),backgroundColor:PALETTE,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{font:{size:10}}}}}});
+    new Chart(el('c-tools-bar'),{type:'bar',data:{labels:tools.slice(0,12).map(t=>t.tool_name),datasets:[{data:tools.slice(0,12).map(t=>t.count),backgroundColor:PALETTE,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:gridColor}},y:{grid:{display:false},ticks:{font:{size:10}}}}}});
 }
 
-// ── GIT COSTS TAB ────────────────────────────────
-async function renderGit() {
-    const app=document.getElementById('git-app');
-    app.innerHTML='<div class="loading"><div class="spinner"></div>Scanning git repos...</div>';
-
+// ── PROJECT DEEP DIVE ────────────────────────────
+async function renderProjectPicker(){
+    const app=document.getElementById('project-app');
+    app.innerHTML='<div class="loading"><div class="spinner"></div></div>';
     const params=new URLSearchParams(dateFilter);
-    const [summary, projects, branches, expensive, timeline] = await Promise.all([
-        fetch('/api/git/summary').then(r=>r.json()),
-        fetch('/api/git/projects?'+params).then(r=>r.json()),
-        fetch('/api/git/branches?'+params).then(r=>r.json()),
-        fetch('/api/git/expensive?limit=15').then(r=>r.json()),
-        fetch('/api/git/timeline?'+params).then(r=>r.json()),
-    ]);
+    const projects=await(await fetch('/api/projects?'+params)).json();
+    app.innerHTML=`<div class="card"><div class="card-header">Select a Project</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
+        ${projects.map(p=>`<div class="card" style="cursor:pointer;border:1px solid var(--border);transition:all var(--transition)" onclick="renderProjectDetail(${p.id})" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="font-size:14px;font-weight:600;color:var(--blue);margin-bottom:6px">${escHtml(p.name)}</div>
+            <div style="font-size:11px;color:var(--text-3);margin-bottom:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(p.full_path)}</div>
+            <div style="display:flex;gap:16px;font-size:12px">
+                <span><span style="color:var(--green);font-weight:600">${fmtCost(p.total_cost||0)}</span> value</span>
+                <span>${p.total_messages||0} msgs</span>
+                <span>${p.session_count||0} sessions</span>
+            </div>
+        </div>`).join('')}
+        </div></div>`;
+}
 
-    if(summary.totalCommits===0){app.innerHTML='<div class="chart-card" style="padding:40px;text-align:center;color:var(--text-muted)">No git repositories found in your projects.</div>';return;}
+async function renderProjectDetail(projectId){
+    const app=document.getElementById('project-app');
+    app.innerHTML='<div class="loading"><div class="spinner"></div></div>';
+    const params=new URLSearchParams(dateFilter);
+    const data=await(await fetch('/api/project/'+projectId+'?'+params)).json();
+    const p=data.project,st=data.stats,gs=data.gitSummary;
 
-    const linkPct = summary.totalCommits>0 ? ((summary.linkedCommits/summary.totalCommits)*100).toFixed(0) : 0;
+    // Calculate interesting stats
+    const avgMsgCost=p.total_messages>0?(p.total_cost/p.total_messages):0;
+    const daysActive=data.dailyUsage.length;
+    const costPerDay=daysActive>0?(p.total_cost/daysActive):0;
+    const linesWritten=(gs.insertions||0)+(gs.deletions||0);
+    const costPerLine=linesWritten>0?(p.total_cost/linesWritten):0;
 
     app.innerHTML=`
-        <div class="kpi-grid">
-            <div class="kpi-card"><div class="kpi-label">Total Commits</div><div class="kpi-value blue">${fmt(summary.totalCommits)}</div><div class="kpi-sub">${linkPct}% linked to sessions</div></div>
-            <div class="kpi-card"><div class="kpi-label">Total AI-Assisted Cost</div><div class="kpi-value green">${fmtCost(summary.totalCost)}</div><div class="kpi-sub">${summary.linkedCommits} commits with cost data</div></div>
-            <div class="kpi-card"><div class="kpi-label">Avg Cost / Commit</div><div class="kpi-value purple">${fmtCost(summary.avgCostPerCommit)}</div><div class="kpi-sub">API equivalent per commit</div></div>
-            <div class="kpi-card"><div class="kpi-label">Lines Written</div><div class="kpi-value cyan">+${fmt(summary.totalInsertions)}</div><div class="kpi-sub">-${fmt(summary.totalDeletions)} deleted</div></div>
-            <div class="kpi-card"><div class="kpi-label">Cost / Line of Code</div><div class="kpi-value orange">${fmtCost(summary.costPerLine)}</div><div class="kpi-sub">per line added or deleted</div></div>
+        <button class="btn" onclick="renderProjectPicker()" style="margin-bottom:16px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> All Projects
+        </button>
+
+        <div style="font-size:20px;font-weight:700;color:var(--blue);margin-bottom:4px">${escHtml(p.name)}</div>
+        <div style="font-size:12px;color:var(--text-3);margin-bottom:20px">${escHtml(p.full_path)}</div>
+
+        <div class="hero-kpis" style="grid-template-columns:repeat(4,1fr)">
+            <div class="hero-card"><div class="accent-line" style="background:var(--green)"></div><div class="label">API Value</div><div class="value" style="color:var(--green)">${fmtCost(p.total_cost||0)}</div><div class="sub">${fmtCost(costPerDay)}/day</div></div>
+            <div class="hero-card"><div class="accent-line" style="background:var(--purple)"></div><div class="label">Messages</div><div class="value" style="color:var(--purple)">${fmt(p.total_messages||0)}</div><div class="sub">${fmtCost(avgMsgCost)}/msg</div></div>
+            <div class="hero-card"><div class="accent-line" style="background:var(--orange)"></div><div class="label">Sessions</div><div class="value" style="color:var(--orange)">${st.totalSessions}</div><div class="sub">${fmtCost(st.avgSessionCost)}/session avg</div></div>
+            <div class="hero-card"><div class="accent-line" style="background:var(--cyan)"></div><div class="label">Git Commits</div><div class="value" style="color:var(--cyan)">${st.totalCommits}</div><div class="sub">${st.linkedCommits} linked to sessions</div></div>
         </div>
 
-        <div class="grid-eq">
-            <div class="chart-card"><h3>Cost by Project (Git)</h3><div class="chart-container tall"><canvas id="c-git-proj"></canvas></div></div>
-            <div class="chart-card"><h3>Commits Timeline</h3><div class="chart-container tall"><canvas id="c-git-timeline"></canvas></div></div>
+        <div class="stat-row">
+            <div class="stat-item"><div class="s-val">${fmtTokens(p.total_input_tokens||0)}</div><div class="s-lbl">Input Tokens</div></div>
+            <div class="stat-item"><div class="s-val">${fmtTokens(p.total_output_tokens||0)}</div><div class="s-lbl">Output Tokens</div></div>
+            <div class="stat-item"><div class="s-val">${fmtTokens(p.total_cache_read||0)}</div><div class="s-lbl">Cache Read</div></div>
+            <div class="stat-item"><div class="s-val">${fmtTokens(p.total_cache_write||0)}</div><div class="s-lbl">Cache Write</div></div>
+            <div class="stat-item"><div class="s-val" style="color:var(--green)">${st.cacheHitRate}%</div><div class="s-lbl">Cache Hit Rate</div></div>
+            <div class="stat-item"><div class="s-val">${daysActive}</div><div class="s-lbl">Active Days</div></div>
+            <div class="stat-item"><div class="s-val">${st.totalSubagents}</div><div class="s-lbl">Subagents</div></div>
+            ${linesWritten>0?`<div class="stat-item"><div class="s-val" style="color:var(--orange)">${fmtCost(costPerLine)}</div><div class="s-lbl">$/Line</div></div>`:''}
         </div>
 
-        <div class="grid-eq">
-            <div class="table-card"><h3>Cost by Project</h3>
-                <table><thead><tr><th>Project</th><th class="text-right">Commits</th><th class="text-right">Linked</th>
-                <th class="text-right">API Value</th><th class="text-right">+Lines</th><th class="text-right">-Lines</th>
-                <th class="text-right">$/Commit</th><th class="text-right">$/Line</th></tr></thead>
-                <tbody>${projects.map(p=>{
-                    const cpc=(p.total_cost||0)/Math.max(p.linked_commits||1,1);
-                    const cpl=(p.total_cost||0)/Math.max((p.insertions||0)+(p.deletions||0),1);
-                    return `<tr><td class="project-name">${escHtml(p.project_name)}</td>
-                    <td class="text-right mono">${p.commits}</td><td class="text-right mono">${p.linked_commits||0}</td>
-                    <td class="text-right mono">${fmtCost(p.total_cost||0)}</td>
-                    <td class="text-right mono lines-added">+${fmt(p.insertions||0)}</td>
-                    <td class="text-right mono lines-deleted">-${fmt(p.deletions||0)}</td>
-                    <td class="text-right mono">${fmtCost(cpc)}</td>
-                    <td class="text-right mono">${fmtCost(cpl)}</td></tr>`;
-                }).join('')}</tbody></table></div>
-
-            <div class="table-card"><h3>Cost by Branch</h3>
-                <table><thead><tr><th>Branch</th><th>Project</th><th class="text-right">Commits</th>
-                <th class="text-right">API Value</th><th class="text-right">+Lines</th><th class="text-right">-Lines</th></tr></thead>
-                <tbody>${branches.slice(0,20).map(b=>`<tr>
-                    <td><span class="branch-badge">${b.branch}</span></td>
-                    <td class="project-name">${escHtml(b.project_name)}</td>
-                    <td class="text-right mono">${b.commits}</td>
-                    <td class="text-right mono">${fmtCost(b.total_cost||0)}</td>
-                    <td class="text-right mono lines-added">+${fmt(b.insertions||0)}</td>
-                    <td class="text-right mono lines-deleted">-${fmt(b.deletions||0)}</td>
-                </tr>`).join('')}</tbody></table></div>
+        <div class="bento">
+            <div class="card span-8"><div class="card-header">Daily Cost</div><div class="chart-wrap chart-h-md"><canvas id="c-pd-daily"></canvas></div></div>
+            <div class="card span-4"><div class="card-header">Models Used</div><div class="chart-wrap chart-h-md"><canvas id="c-pd-models"></canvas></div></div>
         </div>
 
-        <div class="table-card"><h3>Most Expensive Commits</h3>
-            <table><thead><tr><th>Commit</th><th>Project</th><th>Message</th><th>Branch</th>
-            <th class="text-right">API Value</th><th class="text-right">+/-</th><th class="text-right">Date</th></tr></thead>
-            <tbody>${expensive.map(c=>`<tr>
+        <div class="bento">
+            <div class="card span-6"><div class="card-header">Tool Usage</div><div class="chart-wrap chart-h-md"><canvas id="c-pd-tools"></canvas></div></div>
+            <div class="card span-6"><div class="card-header">Daily Messages</div><div class="chart-wrap chart-h-md"><canvas id="c-pd-msgs"></canvas></div></div>
+        </div>
+
+        ${data.gitCommits.length>0?`<div class="bento"><div class="card span-12"><div class="card-header">Git Commits (${data.gitCommits.length})</div>
+            <div style="max-height:400px;overflow-y:auto"><table><thead><tr>
+                <th>Hash</th><th>Message</th><th>Branch</th><th class="text-right">Cost</th>
+                <th class="text-right">+/-</th><th class="text-right">Date</th>
+            </tr></thead><tbody>${data.gitCommits.map(c=>`<tr>
                 <td class="commit-hash">${c.hash.slice(0,8)}</td>
-                <td class="project-name">${escHtml(c.project_name)}</td>
-                <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(c.message)}">${escHtml(c.message.slice(0,60))}</td>
-                <td><span class="branch-badge">${c.branch}</span></td>
-                <td class="text-right mono">${fmtCost(c.estimated_cost)}</td>
-                <td class="text-right mono"><span class="lines-added">+${c.insertions}</span> <span class="lines-deleted">-${c.deletions}</span></td>
-                <td class="text-right mono" style="font-size:10px">${fmtDate(c.date)}</td>
-            </tr>`).join('')}</tbody></table></div>`;
+                <td style="max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escAttr(c.message)}">${escHtml(c.message)}</td>
+                <td><span class="branch-badge">${escHtml(c.branch)}</span></td>
+                <td class="text-right mono">${c.estimated_cost>0?fmtCost(c.estimated_cost):'<span style="color:var(--text-3)">-</span>'}</td>
+                <td class="text-right mono"><span class="lines-add">+${c.insertions||0}</span> <span class="lines-del">-${c.deletions||0}</span></td>
+                <td class="text-right mono" style="font-size:10px">${fmtDateTime(c.date)}</td>
+            </tr>`).join('')}</tbody></table></div>
+        </div></div>`:''}
 
-    // Chart: cost by project
-    new Chart(el('c-git-proj'),{type:'bar',data:{
-        labels:projects.map(p=>p.project_name),
-        datasets:[{label:'API Value',data:projects.map(p=>p.total_cost||0),backgroundColor:PALETTE.map(c=>c+'99'),borderColor:PALETTE,borderWidth:1,borderRadius:4}]
-    },options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtCost(c.parsed.x)+' ('+projects[c.dataIndex].commits+' commits)'}}},scales:{x:{beginAtZero:true,ticks:{callback:v=>'$'+fmt(v)},grid:{color:'rgba(42,45,62,0.3)'}},y:{grid:{display:false}}}}});
+        <div class="bento">
+            <div class="card span-12"><div class="card-header">Sessions (${data.sessions.length})</div>
+            <div style="max-height:400px;overflow-y:auto"><table><thead><tr>
+                <th>Branch</th><th class="text-right">Messages</th><th class="text-right">Cost</th>
+                <th class="text-right">Input</th><th class="text-right">Output</th>
+                <th class="text-right">Started</th><th class="text-right">Last Active</th>
+            </tr></thead><tbody>${data.sessions.map(s=>`<tr style="cursor:pointer" onclick="navTo('sessions');setTimeout(()=>showSession('${escAttr(s.id)}'),100)">
+                <td class="mono" style="font-size:10px">${escHtml(s.git_branch||'-')}</td>
+                <td class="text-right mono">${s.message_count}</td>
+                <td class="text-right mono">${fmtCost(s.total_cost||0)}</td>
+                <td class="text-right mono">${fmtTokens(s.total_input_tokens||0)}</td>
+                <td class="text-right mono">${fmtTokens(s.total_output_tokens||0)}</td>
+                <td class="text-right mono" style="font-size:10px">${fmtDateTime(s.first_timestamp)}</td>
+                <td class="text-right mono" style="font-size:10px">${fmtDateTime(s.last_timestamp)}</td>
+            </tr>`).join('')}</tbody></table></div>
+        </div></div>
 
-    // Chart: timeline
-    const tlDates=[...new Set(timeline.map(t=>t.date.slice(0,10)))].sort();
-    const tlProjects=[...new Set(timeline.map(t=>t.project_name))];
-    const tlDatasets=tlProjects.slice(0,8).map((name,i)=>{
-        const map={};timeline.filter(t=>t.project_name===name).forEach(t=>map[t.date.slice(0,10)]=(map[t.date.slice(0,10)]||0)+t.cost);
-        return{label:name,data:tlDates.map(d=>map[d]||0),backgroundColor:PALETTE[i]+'90',borderColor:PALETTE[i],borderWidth:1,stack:'s'};
-    });
-    new Chart(el('c-git-timeline'),{type:'bar',data:{labels:tlDates.map(fmtDate),datasets:tlDatasets},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:10}}}},scales:{y:{stacked:true,beginAtZero:true,ticks:{callback:v=>'$'+fmt(v)},grid:{color:'rgba(42,45,62,0.3)'}},x:{stacked:true,grid:{display:false}}}}});
+        ${data.subagents.length>0?`<div class="bento"><div class="card span-12"><div class="card-header">Subagents (${data.subagents.length})</div>
+            <table><thead><tr><th>Agent</th><th class="text-right">Messages</th><th class="text-right">Cost</th><th class="text-right">Tokens</th></tr></thead>
+            <tbody>${data.subagents.map(a=>`<tr><td class="mono">${escHtml(a.slug||a.agent_id)}</td><td class="text-right mono">${a.message_count}</td><td class="text-right mono">${fmtCost(a.total_cost||0)}</td><td class="text-right mono">${fmtTokens((a.total_input_tokens||0)+(a.total_output_tokens||0))}</td></tr>`).join('')}</tbody></table>
+        </div></div>`:''}`;
+
+    // Charts
+    const dl=data.dailyUsage,dates=dl.map(d=>fmtDate(d.date));
+
+    new Chart(el('c-pd-daily'),{type:'bar',data:{labels:dates,datasets:[{data:dl.map(d=>d.cost),backgroundColor:COLORS.blue+'88',borderRadius:3,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtCost(c.parsed.y)}}},scales:{y:{beginAtZero:true,ticks:{callback:v=>'$'+fmt(v)},grid:{color:gridColor}},x:{grid:{display:false}}}}});
+
+    if(data.modelUsage.length){
+        new Chart(el('c-pd-models'),{type:'doughnut',data:{labels:data.modelUsage.map(m=>m.model.replace('claude-','')),datasets:[{data:data.modelUsage.map(m=>m.messages),backgroundColor:PALETTE,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{font:{size:10},padding:6}}}}});
+    }
+
+    if(data.toolStats.length){
+        const t12=data.toolStats.slice(0,12);
+        new Chart(el('c-pd-tools'),{type:'bar',data:{labels:t12.map(t=>t.tool_name),datasets:[{data:t12.map(t=>t.count),backgroundColor:PALETTE,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:gridColor}},y:{grid:{display:false},ticks:{font:{size:10}}}}}});
+    }
+
+    new Chart(el('c-pd-msgs'),{type:'line',data:{labels:dates,datasets:[{data:dl.map(d=>d.messages),borderColor:COLORS.purple,backgroundColor:COLORS.purple+'15',fill:true,tension:.4,pointRadius:1.5,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:gridColor}},x:{grid:{display:false}}}}});
 }
 
-// ── INSIGHTS TAB ─────────────────────────────────
-async function renderInsights() {
+// Helper to navigate to a tab programmatically
+function navTo(tab){
+    document.querySelectorAll('.nav-item[data-tab]').forEach(n=>{n.classList.remove('active');if(n.dataset.tab===tab)n.classList.add('active');});
+    document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+    document.getElementById('tab-'+tab).classList.add('active');
+    document.getElementById('page-title').textContent=tab.charAt(0).toUpperCase()+tab.slice(1);
+}
+
+// ── GIT COSTS ────────────────────────────────────
+async function renderGit(){
+    const app=document.getElementById('git-app');
+    app.innerHTML='<div class="loading"><div class="spinner"></div></div>';
+    const params=new URLSearchParams(dateFilter);
+    const[summary,projects,branches,expensive,timeline]=await Promise.all([fetch('/api/git/summary').then(r=>r.json()),fetch('/api/git/projects?'+params).then(r=>r.json()),fetch('/api/git/branches?'+params).then(r=>r.json()),fetch('/api/git/expensive?limit=15').then(r=>r.json()),fetch('/api/git/timeline?'+params).then(r=>r.json())]);
+    if(!summary.totalCommits){app.innerHTML='<div class="card" style="padding:48px;text-align:center;color:var(--text-3)">No git repositories found.</div>';return;}
+    const linkPct=summary.totalCommits>0?((summary.linkedCommits/summary.totalCommits)*100).toFixed(0):0;
+    app.innerHTML=`
+        <div class="hero-kpis" style="grid-template-columns:repeat(5,1fr)">
+            <div class="hero-card"><div class="accent-line" style="background:var(--blue)"></div><div class="label">Commits</div><div class="value" style="color:var(--blue)">${fmt(summary.totalCommits)}</div><div class="sub">${linkPct}% linked</div></div>
+            <div class="hero-card"><div class="accent-line" style="background:var(--green)"></div><div class="label">AI Cost</div><div class="value" style="color:var(--green)">${fmtCost(summary.totalCost)}</div><div class="sub">${summary.linkedCommits} tracked</div></div>
+            <div class="hero-card"><div class="accent-line" style="background:var(--purple)"></div><div class="label">$/Commit</div><div class="value" style="color:var(--purple)">${fmtCost(summary.avgCostPerCommit)}</div><div class="sub">average</div></div>
+            <div class="hero-card"><div class="accent-line" style="background:var(--cyan)"></div><div class="label">Lines</div><div class="value" style="color:var(--cyan)">+${fmt(summary.totalInsertions)}</div><div class="sub">-${fmt(summary.totalDeletions)}</div></div>
+            <div class="hero-card"><div class="accent-line" style="background:var(--orange)"></div><div class="label">$/Line</div><div class="value" style="color:var(--orange)">${fmtCost(summary.costPerLine)}</div><div class="sub">per changed line</div></div>
+        </div>
+        <div class="bento">
+            <div class="card span-6"><div class="card-header">Cost by Project</div><div class="chart-wrap chart-h-md"><canvas id="c-git-proj"></canvas></div></div>
+            <div class="card span-6"><div class="card-header">Commit Timeline</div><div class="chart-wrap chart-h-md"><canvas id="c-git-tl"></canvas></div></div>
+        </div>
+        <div class="bento">
+            <div class="card span-6"><div class="card-header">By Project</div><div style="overflow-x:auto"><table><thead><tr><th>Project</th><th class="text-right">Commits</th><th class="text-right">Value</th><th class="text-right">+Lines</th><th class="text-right">-Lines</th><th class="text-right">$/Commit</th></tr></thead><tbody>${projects.map(p=>`<tr><td class="project-name">${escHtml(p.project_name)}</td><td class="text-right mono">${p.commits}</td><td class="text-right mono">${fmtCost(p.total_cost)}</td><td class="text-right mono lines-add">+${fmt(p.insertions||0)}</td><td class="text-right mono lines-del">-${fmt(p.deletions||0)}</td><td class="text-right mono">${fmtCost((p.total_cost||0)/Math.max(p.linked_commits||1,1))}</td></tr>`).join('')}</tbody></table></div></div>
+            <div class="card span-6"><div class="card-header">By Branch</div><div style="overflow-x:auto"><table><thead><tr><th>Branch</th><th>Project</th><th class="text-right">Commits</th><th class="text-right">Value</th></tr></thead><tbody>${branches.slice(0,15).map(b=>`<tr><td><span class="branch-badge">${escHtml(b.branch)}</span></td><td class="project-name">${escHtml(b.project_name)}</td><td class="text-right mono">${b.commits}</td><td class="text-right mono">${fmtCost(b.total_cost)}</td></tr>`).join('')}</tbody></table></div></div>
+        </div>
+        <div class="bento">
+            <div class="card span-12"><div class="card-header">Most Expensive Commits</div><div style="overflow-x:auto"><table><thead><tr><th>Hash</th><th>Project</th><th>Message</th><th>Branch</th><th class="text-right">Value</th><th class="text-right">+/-</th><th class="text-right">Date</th></tr></thead><tbody>${expensive.map(c=>`<tr><td class="commit-hash">${c.hash.slice(0,8)}</td><td class="project-name">${escHtml(c.project_name)}</td><td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escAttr(c.message)}">${escHtml(c.message.slice(0,55))}</td><td><span class="branch-badge">${escHtml(c.branch)}</span></td><td class="text-right mono">${fmtCost(c.estimated_cost)}</td><td class="text-right mono"><span class="lines-add">+${c.insertions}</span> <span class="lines-del">-${c.deletions}</span></td><td class="text-right mono" style="font-size:10px">${fmtDate(c.date)}</td></tr>`).join('')}</tbody></table></div></div>
+        </div>`;
+    new Chart(el('c-git-proj'),{type:'bar',data:{labels:projects.map(p=>p.project_name),datasets:[{data:projects.map(p=>p.total_cost||0),backgroundColor:PALETTE.map(c=>c+'88'),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{callback:v=>'$'+fmt(v)},grid:{color:gridColor}},y:{grid:{display:false},ticks:{font:{size:10}}}}}});
+    const tlD=[...new Set(timeline.map(t=>t.date.slice(0,10)))].sort(),tlP=[...new Set(timeline.map(t=>t.project_name))].slice(0,6);
+    const tlDS=tlP.map((n,i)=>{const m={};timeline.filter(t=>t.project_name===n).forEach(t=>m[t.date.slice(0,10)]=(m[t.date.slice(0,10)]||0)+t.cost);return{label:n,data:tlD.map(d=>m[d]||0),backgroundColor:PALETTE[i]+'80',stack:'s'};});
+    new Chart(el('c-git-tl'),{type:'bar',data:{labels:tlD.map(fmtDate),datasets:tlDS},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:10}}}},scales:{y:{stacked:true,beginAtZero:true,ticks:{callback:v=>'$'+fmt(v)},grid:{color:gridColor}},x:{stacked:true,grid:{display:false}}}}});
+}
+
+// ── INSIGHTS ─────────────────────────────────────
+async function renderInsights(){
     const app=document.getElementById('insights-app');
-    app.innerHTML='<div class="loading"><div class="spinner"></div>Analyzing...</div>';
+    app.innerHTML='<div class="loading"><div class="spinner"></div></div>';
     const insights=await(await fetch('/api/insights')).json();
-    if(insights.length===0){app.innerHTML='<div class="chart-card" style="padding:40px;text-align:center;color:var(--text-muted)">No insights to show. Keep using Claude Code!</div>';return;}
-    app.innerHTML=`<div class="chart-card"><h3>AI Insights (${insights.length})</h3>${insights.map(i=>`
-        <div class="insight ${i.severity}"><div class="insight-title">${escHtml(i.title)}</div><div class="insight-detail">${escHtml(i.detail)}</div></div>
-    `).join('')}</div>`;
+    if(!insights.length){app.innerHTML='<div class="card" style="padding:48px;text-align:center;color:var(--text-3)">No insights yet. Keep using Claude Code!</div>';return;}
+    app.innerHTML=`<div class="card"><div class="card-header">Insights (${insights.length})</div>${insights.map(i=>`<div class="insight ${i.severity}"><div class="insight-title">${escHtml(i.title)}</div><div class="insight-detail">${escHtml(i.detail)}</div></div>`).join('')}</div>`;
 }
 
-// ── Browser Notifications ────────────────────────
-let notificationsEnabled = false;
-function requestNotifications() {
-    if (!('Notification' in window)) return;
-    Notification.requestPermission().then(p => {
-        notificationsEnabled = p === 'granted';
-        showToast(notificationsEnabled ? 'Notifications enabled' : 'Notifications denied');
-    });
-}
-if ('Notification' in window && Notification.permission === 'granted') notificationsEnabled = true;
+// ── Notifications ────────────────────────────────
+let notifEnabled=false;
+if('Notification'in window&&Notification.permission==='granted')notifEnabled=true;
+function sendNotif(title,body){if(!notifEnabled)return;try{new Notification(title,{body});}catch{}}
 
-function sendNotification(title, body) {
-    if (!notificationsEnabled) return;
-    try { new Notification(title, { body, icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y="80" font-size="80">📡</text></svg>' }); } catch {}
-}
-
-// ── WebSocket for real-time ──────────────────────
-function connectWS() {
-    try {
-        const ws = new WebSocket('ws://' + location.host + '/ws');
-        ws.onmessage = (e) => {
-            const msg = JSON.parse(e.data);
-            if (msg.type === 'refresh') {
-                loadAndRender();
-                showToast('Live update: ' + (msg.indexed || 0) + ' new files');
-                sendNotification('Claude Radar', (msg.indexed || 0) + ' new files indexed');
-            }
-        };
-        ws.onclose = () => setTimeout(connectWS, 5000);
-    } catch {}
-}
+// ── WebSocket ────────────────────────────────────
+function connectWS(){try{const ws=new WebSocket('ws://'+location.host+'/ws');ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.type==='refresh'){loadAndRender();showToast('Live: '+(m.indexed||0)+' new files');sendNotif('Claude Radar',(m.indexed||0)+' files indexed');}};ws.onclose=()=>setTimeout(connectWS,5000);}catch{}}
 connectWS();
 
 // ── Report Generator ─────────────────────────────
-async function generateReport() {
-    if (!currentData) return;
-    const s = currentData.summary;
-    const sub = currentData.subscription || {};
-    const apiVal = s.apiEquivalentCost || 0;
-    const roi = sub.actualCost > 0 ? (apiVal / sub.actualCost).toFixed(1) : 'N/A';
-    const projects = currentData.projects || [];
-
-    let gitSection = '';
-    try {
-        const gitSummary = await (await fetch('/api/git/summary')).json();
-        const gitExpensive = await (await fetch('/api/git/expensive?limit=10')).json();
-        if (gitSummary.totalCommits > 0) {
-            gitSection = `
-            <div class="section">
-                <h2>Git-to-Cost Analysis</h2>
-                <div class="kpi-row">
-                    <div class="kpi"><div class="val">${gitSummary.totalCommits}</div><div class="lbl">Total Commits</div></div>
-                    <div class="kpi"><div class="val">${gitSummary.linkedCommits}</div><div class="lbl">Linked to Sessions</div></div>
-                    <div class="kpi"><div class="val">$${gitSummary.avgCostPerCommit.toFixed(2)}</div><div class="lbl">Avg $/Commit</div></div>
-                    <div class="kpi"><div class="val">$${gitSummary.costPerLine.toFixed(4)}</div><div class="lbl">$/Line of Code</div></div>
-                </div>
-                <h3>Most Expensive Commits</h3>
-                <table>
-                    <tr><th>Cost</th><th>Project</th><th>Commit</th><th>Message</th></tr>
-                    ${gitExpensive.map(c => `<tr><td>$${c.estimated_cost.toFixed(2)}</td><td>${c.project_name}</td><td style="font-family:monospace">${c.hash.slice(0,8)}</td><td>${c.message.slice(0,60)}</td></tr>`).join('')}
-                </table>
-            </div>`;
-        }
-    } catch {}
-
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Claude Radar Report</title><style>
-        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:900px;margin:0 auto;padding:40px;color:#1a1d27;background:#fff}
-        h1{font-size:28px;margin-bottom:4px} .subtitle{color:#666;margin-bottom:32px;font-size:14px}
-        .section{margin-bottom:32px} h2{font-size:18px;border-bottom:2px solid #e0e2ea;padding-bottom:8px;margin-bottom:16px}
-        h3{font-size:14px;color:#666;margin:16px 0 8px}
-        .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;margin-bottom:20px}
-        .kpi{background:#f5f6fa;border-radius:10px;padding:16px;text-align:center}
-        .kpi .val{font-size:24px;font-weight:700;color:#4f8ff7} .kpi .lbl{font-size:11px;color:#888;margin-top:4px;text-transform:uppercase}
-        table{width:100%;border-collapse:collapse;font-size:13px} th{text-align:left;padding:8px;border-bottom:2px solid #e0e2ea;font-size:11px;text-transform:uppercase;color:#888}
-        td{padding:8px;border-bottom:1px solid #f0f0f0} tr:hover td{background:#f9f9ff}
-        .footer{margin-top:40px;font-size:11px;color:#aaa;text-align:center;border-top:1px solid #e0e2ea;padding-top:16px}
-    </style></head><body>
-        <h1>Claude Radar Report</h1>
-        <div class="subtitle">Generated ${new Date().toLocaleString()} | ${sub.plan || 'Unknown'} Plan</div>
-
-        <div class="section">
-            <h2>Summary</h2>
-            <div class="kpi-row">
-                <div class="kpi"><div class="val">$${sub.actualCost || 0}</div><div class="lbl">Actual Cost</div></div>
-                <div class="kpi"><div class="val">$${apiVal.toFixed(2)}</div><div class="lbl">API Equivalent</div></div>
-                <div class="kpi"><div class="val">${roi}x</div><div class="lbl">ROI</div></div>
-                <div class="kpi"><div class="val">${s.totalMessages.toLocaleString()}</div><div class="lbl">Messages</div></div>
-                <div class="kpi"><div class="val">${s.totalProjects}</div><div class="lbl">Projects</div></div>
-                <div class="kpi"><div class="val">${s.totalSessions}</div><div class="lbl">Sessions</div></div>
-            </div>
-        </div>
-
-        <div class="section">
-            <h2>Projects by API Value</h2>
-            <table>
-                <tr><th>Project</th><th style="text-align:right">API Value</th><th style="text-align:right">Messages</th><th style="text-align:right">Sessions</th><th style="text-align:right">Share</th></tr>
-                ${projects.map(p => `<tr><td><strong>${p.name}</strong></td><td style="text-align:right">$${p.totalCost.toFixed(2)}</td><td style="text-align:right">${p.totalMessages}</td><td style="text-align:right">${p.sessionCount}</td><td style="text-align:right">${(p.totalCost/apiVal*100).toFixed(1)}%</td></tr>`).join('')}
-            </table>
-        </div>
-
-        <div class="section">
-            <h2>Model Usage</h2>
-            <table>
-                <tr><th>Model</th><th style="text-align:right">Messages</th><th style="text-align:right">API Value</th><th style="text-align:right">Share</th></tr>
-                ${Object.entries(currentData.modelUsage).filter(([k])=>k!=='<synthetic>').sort(([,a],[,b])=>b.cost-a.cost).map(([name,m])=>`<tr><td>${name}</td><td style="text-align:right">${m.messages}</td><td style="text-align:right">$${m.cost.toFixed(2)}</td><td style="text-align:right">${(m.cost/apiVal*100).toFixed(1)}%</td></tr>`).join('')}
-            </table>
-        </div>
-
-        ${gitSection}
-
-        <div class="footer">Generated by Claude Radar | github.com/berenceylan/claude-radar</div>
-    </body></html>`;
-
-    const blob = new Blob([html], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'claude-radar-report.html'; a.click();
-    URL.revokeObjectURL(url);
-    showToast('Report downloaded');
+async function generateReport(){
+    if(!currentData)return;const s=currentData.summary,sub=currentData.subscription||{},apiVal=s.apiEquivalentCost||0,roi=sub.actualCost>0?(apiVal/sub.actualCost).toFixed(1):'N/A',p=currentData.projects||[];
+    let gitHtml='';try{const gs=await(await fetch('/api/git/summary')).json();const ge=await(await fetch('/api/git/expensive?limit=10')).json();if(gs.totalCommits>0)gitHtml=`<div class="sec"><h2>Git Cost Analysis</h2><div class="krow"><div class="k"><div class="kv">${gs.totalCommits}</div><div class="kl">Commits</div></div><div class="k"><div class="kv">${gs.linkedCommits}</div><div class="kl">Linked</div></div><div class="k"><div class="kv">$${gs.avgCostPerCommit.toFixed(2)}</div><div class="kl">$/Commit</div></div><div class="k"><div class="kv">$${gs.costPerLine.toFixed(4)}</div><div class="kl">$/Line</div></div></div><table><tr><th>Cost</th><th>Project</th><th>Hash</th><th>Message</th></tr>${ge.map(c=>`<tr><td>$${c.estimated_cost.toFixed(2)}</td><td>${c.project_name}</td><td style="font-family:monospace">${c.hash.slice(0,8)}</td><td>${c.message.slice(0,50)}</td></tr>`).join('')}</table></div>`;}catch{}
+    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Claude Radar Report</title><style>body{font-family:'Fira Sans',-apple-system,sans-serif;max-width:860px;margin:0 auto;padding:40px;color:#111;background:#fff}h1{font-size:26px;margin-bottom:2px}.sub{color:#666;margin-bottom:32px;font-size:13px}.sec{margin-bottom:28px}h2{font-size:16px;border-bottom:2px solid #e5e7eb;padding-bottom:6px;margin-bottom:14px}.krow{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:14px;margin-bottom:18px}.k{background:#f8f9fc;border-radius:8px;padding:14px;text-align:center}.k .kv{font-size:22px;font-weight:700;font-family:'Fira Code',monospace;color:#4f8ff7}.k .kl{font-size:10px;color:#888;margin-top:3px;text-transform:uppercase}table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;padding:7px;border-bottom:2px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#888}td{padding:7px;border-bottom:1px solid #f0f0f0}tr:hover td{background:#f8f9ff}.ft{margin-top:36px;font-size:10px;color:#bbb;text-align:center;border-top:1px solid #e5e7eb;padding-top:14px}</style></head><body><h1>Claude Radar Report</h1><div class="sub">Generated ${new Date().toLocaleString()} | ${sub.plan||'Unknown'} Plan</div><div class="sec"><h2>Summary</h2><div class="krow"><div class="k"><div class="kv">$${(sub.actualCost||0)}</div><div class="kl">Paid</div></div><div class="k"><div class="kv">$${apiVal.toFixed(2)}</div><div class="kl">API Value</div></div><div class="k"><div class="kv">${roi}x</div><div class="kl">ROI</div></div><div class="k"><div class="kv">${s.totalMessages.toLocaleString()}</div><div class="kl">Messages</div></div><div class="k"><div class="kv">${s.totalProjects}</div><div class="kl">Projects</div></div></div></div><div class="sec"><h2>Projects</h2><table><tr><th>Project</th><th style="text-align:right">Value</th><th style="text-align:right">Msgs</th><th style="text-align:right">Sessions</th><th style="text-align:right">Share</th></tr>${p.map(x=>`<tr><td><strong>${x.name}</strong></td><td style="text-align:right">$${x.totalCost.toFixed(2)}</td><td style="text-align:right">${x.totalMessages}</td><td style="text-align:right">${x.sessionCount}</td><td style="text-align:right">${(x.totalCost/apiVal*100).toFixed(1)}%</td></tr>`).join('')}</table></div>${gitHtml}<div class="ft">Claude Radar &middot; github.com/berenceylan/claude-radar</div></body></html>`;
+    const blob=new Blob([html],{type:'text/html'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='claude-radar-report.html';a.click();URL.revokeObjectURL(url);showToast('Report downloaded');
 }
 
 // ── Helpers ──────────────────────────────────────
@@ -834,10 +735,7 @@ function escHtml(s){if(!s)return'';const d=document.createElement('div');d.textC
 function escAttr(s){if(!s)return'';return s.replace(/[&'"<>]/g,c=>({'&':'&amp;',"'":'&#39;','"':'&quot;','<':'&lt;','>':'&gt;'}[c]));}
 
 // ── Init ─────────────────────────────────────────
-loadAndRender().catch(err => {
-    document.getElementById('overview-app').innerHTML=`<div class="loading" style="flex-direction:column;gap:12px">
-        <div style="color:var(--accent-red)">Failed to load</div><div style="color:var(--text-muted);font-size:12px">${err.message}</div></div>`;
-});
+loadAndRender().catch(err=>{document.getElementById('overview-app').innerHTML=`<div class="loading" style="flex-direction:column;gap:12px"><div style="color:var(--red)">Failed to load</div><div style="font-size:12px;color:var(--text-3)">${err.message}</div></div>`;});
 </script>
 </body>
 </html>
