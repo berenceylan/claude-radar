@@ -98,10 +98,19 @@ function indexGitData() {
   for (const project of projects) {
     if (!isGitRepo(project.full_path)) continue;
 
-    // Get all sessions for this project
-    const sessions = db.prepare(
-      'SELECT id, first_timestamp, last_timestamp, total_cost, message_count FROM sessions WHERE project_id = ? AND total_cost > 0 ORDER BY first_timestamp'
-    ).all(project.id);
+    // Get all sessions for this project — use messages table for accurate costs
+    const sessions = db.prepare(`
+      SELECT s.id, s.first_timestamp, s.last_timestamp, s.message_count,
+        COALESCE(m.actual_cost, 0) as total_cost
+      FROM sessions s
+      LEFT JOIN (
+        SELECT session_id, SUM(cost) as actual_cost
+        FROM messages WHERE type='assistant'
+        GROUP BY session_id
+      ) m ON m.session_id = s.id
+      WHERE s.project_id = ? AND m.actual_cost > 0
+      ORDER BY s.first_timestamp
+    `).all(project.id);
 
     // Get all commits for this project
     const allCommits = getGitLog(project.full_path);
