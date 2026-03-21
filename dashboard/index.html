@@ -417,7 +417,7 @@ function renderOverview(data) {
     // Project table
     const maxCost=p[0]?.totalCost||1;
     document.getElementById('proj-tbody').innerHTML=p.map(x=>`<tr>
-        <td><div class="project-name">${x.name}</div><div class="project-path" title="${x.path}">${x.path}</div></td>
+        <td><div class="project-name">${escHtml(x.name)}</div><div class="project-path" title="${escAttr(x.path)}">${escHtml(x.path)}</div></td>
         <td class="text-right mono">${fmtCost(x.totalCost)}</td><td class="text-right mono">${fmt(x.totalMessages)}</td>
         <td class="text-right mono">${x.sessionCount}</td><td class="text-right mono">${fmtTokens(x.totalInputTokens)}</td>
         <td class="text-right mono">${fmtTokens(x.totalOutputTokens)}</td><td class="text-right mono">${fmtTokens(x.totalCacheRead)}</td>
@@ -454,8 +454,8 @@ async function renderSessions() {
         <div class="table-card"><h3>Sessions (${sessions.length})</h3>
         <table><thead><tr><th>Project</th><th>Branch</th><th class="text-right">Messages</th><th class="text-right">API Value</th>
         <th class="text-right">Input</th><th class="text-right">Output</th><th class="text-right">Started</th><th class="text-right">Last Active</th></tr></thead>
-        <tbody>${sessions.map(s=>`<tr class="clickable" onclick="showSession('${s.id}')">
-            <td class="project-name">${s.project_name}</td><td class="mono" style="font-size:10px">${s.git_branch||'-'}</td>
+        <tbody>${sessions.map(s=>`<tr class="clickable" onclick="showSession('${escAttr(s.id)}')">
+            <td class="project-name">${escHtml(s.project_name)}</td><td class="mono" style="font-size:10px">${escHtml(s.git_branch||'-')}</td>
             <td class="text-right mono">${s.message_count}</td><td class="text-right mono">${fmtCost(s.total_cost||0)}</td>
             <td class="text-right mono">${fmtTokens(s.total_input_tokens||0)}</td><td class="text-right mono">${fmtTokens(s.total_output_tokens||0)}</td>
             <td class="text-right mono" style="font-size:10px">${fmtDateTime(s.first_timestamp)}</td>
@@ -575,7 +575,7 @@ async function renderTools() {
                 <tbody>${tools.map(t=>`<tr><td class="mono">${t.tool_name}</td><td class="text-right mono">${fmt(t.count)}</td><td class="text-right mono">${t.sessions}</td><td class="text-right mono">${t.projects}</td></tr>`).join('')}</tbody></table></div>
             <div class="table-card"><h3>Subagents (${subagents.length})</h3>
                 <table><thead><tr><th>Agent</th><th>Project</th><th class="text-right">Messages</th><th class="text-right">API Value</th></tr></thead>
-                <tbody>${subagents.slice(0,50).map(a=>`<tr><td class="mono">${a.slug||a.agent_id}</td><td class="project-name">${a.project_name}</td><td class="text-right mono">${a.message_count}</td><td class="text-right mono">${fmtCost(a.total_cost||0)}</td></tr>`).join('')}</tbody></table></div>
+                <tbody>${subagents.slice(0,50).map(a=>`<tr><td class="mono">${escHtml(a.slug||a.agent_id)}</td><td class="project-name">${escHtml(a.project_name)}</td><td class="text-right mono">${a.message_count}</td><td class="text-right mono">${fmtCost(a.total_cost||0)}</td></tr>`).join('')}</tbody></table></div>
         </div>`;
 
     // Tool pie
@@ -626,7 +626,7 @@ async function renderGit() {
                 <tbody>${projects.map(p=>{
                     const cpc=(p.total_cost||0)/Math.max(p.linked_commits||1,1);
                     const cpl=(p.total_cost||0)/Math.max((p.insertions||0)+(p.deletions||0),1);
-                    return `<tr><td class="project-name">${p.project_name}</td>
+                    return `<tr><td class="project-name">${escHtml(p.project_name)}</td>
                     <td class="text-right mono">${p.commits}</td><td class="text-right mono">${p.linked_commits||0}</td>
                     <td class="text-right mono">${fmtCost(p.total_cost||0)}</td>
                     <td class="text-right mono lines-added">+${fmt(p.insertions||0)}</td>
@@ -640,7 +640,7 @@ async function renderGit() {
                 <th class="text-right">API Value</th><th class="text-right">+Lines</th><th class="text-right">-Lines</th></tr></thead>
                 <tbody>${branches.slice(0,20).map(b=>`<tr>
                     <td><span class="branch-badge">${b.branch}</span></td>
-                    <td class="project-name">${b.project_name}</td>
+                    <td class="project-name">${escHtml(b.project_name)}</td>
                     <td class="text-right mono">${b.commits}</td>
                     <td class="text-right mono">${fmtCost(b.total_cost||0)}</td>
                     <td class="text-right mono lines-added">+${fmt(b.insertions||0)}</td>
@@ -653,7 +653,7 @@ async function renderGit() {
             <th class="text-right">API Value</th><th class="text-right">+/-</th><th class="text-right">Date</th></tr></thead>
             <tbody>${expensive.map(c=>`<tr>
                 <td class="commit-hash">${c.hash.slice(0,8)}</td>
-                <td class="project-name">${c.project_name}</td>
+                <td class="project-name">${escHtml(c.project_name)}</td>
                 <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(c.message)}">${escHtml(c.message.slice(0,60))}</td>
                 <td><span class="branch-badge">${c.branch}</span></td>
                 <td class="text-right mono">${fmtCost(c.estimated_cost)}</td>
@@ -811,7 +811,8 @@ async function generateReport() {
 
 // ── Helpers ──────────────────────────────────────
 function el(id){return document.getElementById(id).getContext('2d');}
-function escHtml(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function escHtml(s){if(!s)return'';const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function escAttr(s){if(!s)return'';return s.replace(/[&'"<>]/g,c=>({'&':'&amp;',"'":'&#39;','"':'&quot;','<':'&lt;','>':'&gt;'}[c]));}
 
 // ── Init ─────────────────────────────────────────
 loadAndRender().catch(err => {

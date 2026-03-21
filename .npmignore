@@ -3,3 +3,4 @@ data.json
 .DS_Store
 *.log
 generate-data.js
+untracked/

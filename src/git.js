@@ -3,7 +3,7 @@
  * Scans project repos, correlates commits with session costs.
  */
 
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const Database = require('better-sqlite3');
 const path = require('path');
 const os = require('os');
@@ -20,19 +20,17 @@ function openDb() {
 
 function isGitRepo(dir) {
   try {
-    execSync(`git -C "${dir}" rev-parse --is-inside-work-tree 2>/dev/null`, { encoding: 'utf8' });
+    execFileSync('git', ['-C', dir, 'rev-parse', '--is-inside-work-tree'], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
     return true;
   } catch { return false; }
 }
 
 function getGitLog(dir, since, until) {
   try {
-    const format = '%H|%ai|%an|%s';
-    let cmd = `git -C "${dir}" log --format="${format}"`;
-    if (since) cmd += ` --after="${since}"`;
-    if (until) cmd += ` --before="${until}"`;
-    cmd += ' 2>/dev/null';
-    const out = execSync(cmd, { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 }).trim();
+    const args = ['-C', dir, 'log', '--format=%H|%ai|%an|%s'];
+    if (since) args.push('--after=' + since);
+    if (until) args.push('--before=' + until);
+    const out = execFileSync('git', args, { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
     if (!out) return [];
     return out.split('\n').filter(Boolean).map(line => {
       const [hash, date, author, ...msgParts] = line.split('|');
@@ -43,7 +41,7 @@ function getGitLog(dir, since, until) {
 
 function getCommitStats(dir, hash) {
   try {
-    const out = execSync(`git -C "${dir}" diff --shortstat ${hash}^..${hash} 2>/dev/null`, { encoding: 'utf8' }).trim();
+    const out = execFileSync('git', ['-C', dir, 'diff', '--shortstat', hash + '^..' + hash], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
     const files = (out.match(/(\d+) file/) || [, 0])[1];
     const insertions = (out.match(/(\d+) insertion/) || [, 0])[1];
     const deletions = (out.match(/(\d+) deletion/) || [, 0])[1];
@@ -53,7 +51,7 @@ function getCommitStats(dir, hash) {
 
 function getBranches(dir, hash) {
   try {
-    const out = execSync(`git -C "${dir}" branch --contains ${hash} --format="%(refname:short)" 2>/dev/null`, { encoding: 'utf8' }).trim();
+    const out = execFileSync('git', ['-C', dir, 'branch', '--contains', hash, '--format=%(refname:short)'], { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
     return out.split('\n').filter(Boolean);
   } catch { return []; }
 }

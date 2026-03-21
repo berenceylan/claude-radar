@@ -404,15 +404,6 @@ async function indexAll(onProgress) {
 
       const isSubagent = filePath.includes('/subagents/');
 
-      // Clear old data for this file's entries before re-indexing
-      // We rely on INSERT OR IGNORE for messages, so just re-index
-      const txn = db.transaction(async () => {
-        await indexFile(db, filePath, projectId, isSubagent);
-        markFileIndexed(db, filePath);
-      });
-
-      // Run synchronously via a wrapper since better-sqlite3 transactions are sync
-      // but our file reading is async
       await indexFile(db, filePath, projectId, isSubagent);
       markFileIndexed(db, filePath);
       indexed++;
@@ -879,8 +870,18 @@ function getInsights() {
   });
 }
 
+/**
+ * Full re-index: clears DB and re-indexes everything from scratch.
+ */
+async function reindexAll(onProgress) {
+  const db = openDb();
+  db.exec('DELETE FROM messages; DELETE FROM sessions; DELETE FROM tool_calls; DELETE FROM subagents; DELETE FROM indexed_files;');
+  db.close();
+  return indexAll(onProgress);
+}
+
 module.exports = {
-  openDb, indexAll,
+  openDb, indexAll, reindexAll,
   getSummary, getProjects, getDailyUsage, getModelUsage,
   getSessions, getSessionDetail, getToolStats, getSubagents,
   getProjectDailyTokens, getInsights,

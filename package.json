@@ -23,12 +23,23 @@
     "cost",
     "analytics"
   ],
-  "author": "",
+  "author": "Beren Ceylan",
   "license": "MIT",
+  "homepage": "https://github.com/berenceylan/claude-radar#readme",
+  "bugs": {
+    "url": "https://github.com/berenceylan/claude-radar/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/berenceylan/claude-radar.git"
   },
+  "files": [
+    "bin/",
+    "src/",
+    "dashboard/",
+    "LICENSE",
+    "README.md"
+  ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
     "better-sqlite3": "^12.8.0",

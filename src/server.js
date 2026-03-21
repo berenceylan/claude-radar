@@ -128,10 +128,9 @@ function createServer(options = {}) {
   // ── Re-index ──────────────────────────────────────
   app.post('/api/regenerate', async (req, res) => {
     try {
-      // Clear DB and re-index from scratch
-      const result = await db.indexAll();
+      const result = await db.reindexAll();
+      try { git.indexGitData(); } catch {}
       const summary = db.getSummary();
-      // Notify WebSocket clients
       broadcast({ type: 'refresh' });
       res.json({ ok: true, projects: summary.total_projects, messages: summary.total_messages, ...result });
     } catch (err) {
@@ -285,8 +284,9 @@ function createServer(options = {}) {
 
       const projects = db.getProjects(opts);
       const header = 'Project,Path,Sessions,Messages,Input Tokens,Output Tokens,Cache Read,Cache Write,API Value,First Active,Last Active\n';
+      const csvEsc = (s) => `"${String(s || '').replace(/"/g, '""')}"`;
       const rows = projects.map(p =>
-        [p.name, `"${p.full_path}"`, p.session_count, p.total_messages,
+        [csvEsc(p.name), csvEsc(p.full_path), p.session_count, p.total_messages,
          p.total_input_tokens, p.total_output_tokens, p.total_cache_read, p.total_cache_write,
          (p.total_cost || 0).toFixed(2), p.first_activity || '', p.last_activity || ''
         ].join(',')
