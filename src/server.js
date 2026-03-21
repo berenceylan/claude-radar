@@ -19,6 +19,17 @@ function createServer(options = {}) {
 
   app.use(express.json());
 
+  // Security: restrict to localhost origins only
+  app.use((req, res, next) => {
+    const origin = req.headers.origin || '';
+    if (origin && !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    next();
+  });
+
   // ── Index on startup ──────────────────────────────
   let indexReady = false;
   let indexPromise = db.indexAll((p) => {
@@ -145,8 +156,8 @@ function createServer(options = {}) {
       const sessions = db.getSessions({
         projectId: projectId ? Number(projectId) : undefined,
         startDate, endDate,
-        limit: limit ? Number(limit) : 50,
-        offset: offset ? Number(offset) : 0,
+        limit: Math.min(Number(limit) || 50, 1000),
+        offset: Number(offset) || 0,
       });
       res.json(sessions);
     } catch (err) {
@@ -226,7 +237,7 @@ function createServer(options = {}) {
       res.json(git.getGitCommits({
         projectId: projectId ? Number(projectId) : undefined,
         sessionId, branch, startDate, endDate,
-        limit: limit ? Number(limit) : 100,
+        limit: Math.min(Number(limit) || 100, 1000),
       }));
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
@@ -240,7 +251,7 @@ function createServer(options = {}) {
 
   app.get('/api/git/expensive', (req, res) => {
     try {
-      const limit = req.query.limit ? Number(req.query.limit) : 20;
+      const limit = Math.min(Number(req.query.limit) || 20, 1000);
       res.json(git.getMostExpensiveCommits(limit));
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
@@ -331,7 +342,14 @@ function createServer(options = {}) {
   const wss = new WebSocketServer({ server, path: '/ws' });
   const clients = new Set();
 
-  wss.on('connection', (ws) => {
+  wss.on('connection', (ws, req) => {
+    // Only allow localhost connections
+    const origin = req.headers.origin || '';
+    const isLocal = !origin || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+    if (!isLocal) {
+      ws.close(1008, 'Forbidden');
+      return;
+    }
     clients.add(ws);
     ws.on('close', () => clients.delete(ws));
   });
@@ -367,7 +385,7 @@ function createServer(options = {}) {
 function startServer(options = {}) {
   const { server, port } = createServer(options);
 
-  server.listen(port, () => {
+  server.listen(port, '127.0.0.1', () => {
     const url = `http://localhost:${port}`;
     console.log(`\n  Claude Radar Dashboard`);
     console.log(`  ${url}\n`);
