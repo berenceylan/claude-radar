@@ -450,7 +450,7 @@ async function renderSessions() {
 
     app.innerHTML=`
         ${ganttSessions.length > 0 ? `<div class="chart-card" style="margin-bottom:12px"><h3>Session Timeline</h3>
-            <div class="chart-container" style="height:${Math.max(200, ganttSessions.length * 22 + 40)}px"><canvas id="c-gantt"></canvas></div></div>` : ''}
+            <div class="chart-container" style="height:${Math.max(250, ganttSessions.length * 36 + 60)}px"><canvas id="c-gantt"></canvas></div></div>` : ''}
         <div class="table-card"><h3>Sessions (${sessions.length})</h3>
         <table><thead><tr><th>Project</th><th>Branch</th><th class="text-right">Messages</th><th class="text-right">API Value</th>
         <th class="text-right">Input</th><th class="text-right">Output</th><th class="text-right">Started</th><th class="text-right">Last Active</th></tr></thead>
@@ -464,11 +464,24 @@ async function renderSessions() {
 
     // Render Gantt chart
     if (ganttSessions.length > 0) {
-        const labels = ganttSessions.map((s, i) => s.project_name + ' #' + (i + 1));
+        // Calculate minimum visible bar width as % of total range
+        const allStarts = ganttSessions.map(s => new Date(s.first_timestamp).getTime());
+        const allEnds = ganttSessions.map(s => new Date(s.last_timestamp).getTime());
+        const rangeMin = Math.min(...allStarts);
+        const rangeMax = Math.max(...allEnds);
+        const totalRange = rangeMax - rangeMin || 1;
+        const minBarWidth = totalRange * 0.015; // Min 1.5% of visible range
+
+        const labels = ganttSessions.map((s, i) => {
+            const dur = ((new Date(s.last_timestamp) - new Date(s.first_timestamp)) / 60000);
+            const durStr = dur >= 60 ? (dur/60).toFixed(1) + 'h' : Math.round(dur) + 'm';
+            return s.project_name + ' (' + durStr + ')';
+        });
+
         const data = ganttSessions.map(s => {
             const start = new Date(s.first_timestamp).getTime();
             const end = new Date(s.last_timestamp).getTime();
-            return [start, Math.max(end, start + 60000)]; // min 1min bar
+            return [start, Math.max(end, start + minBarWidth)];
         });
 
         new Chart(el('c-gantt'), {
@@ -480,8 +493,10 @@ async function renderSessions() {
                     backgroundColor: ganttSessions.map(s => (projectColorMap[s.project_name] || COLORS.blue) + '90'),
                     borderColor: ganttSessions.map(s => projectColorMap[s.project_name] || COLORS.blue),
                     borderWidth: 1,
-                    borderRadius: 3,
+                    borderRadius: 4,
                     borderSkipped: false,
+                    barPercentage: 0.7,
+                    categoryPercentage: 0.85,
                 }]
             },
             options: {
@@ -494,10 +509,12 @@ async function renderSessions() {
                         callbacks: {
                             label: (ctx) => {
                                 const s = ganttSessions[ctx.dataIndex];
-                                const dur = ((new Date(s.last_timestamp) - new Date(s.first_timestamp)) / 60000).toFixed(0);
+                                const dur = ((new Date(s.last_timestamp) - new Date(s.first_timestamp)) / 60000);
+                                const durStr = dur >= 60 ? (dur/60).toFixed(1) + ' hours' : Math.round(dur) + ' min';
                                 return [
                                     `${fmtDateTime(s.first_timestamp)} → ${fmtDateTime(s.last_timestamp)}`,
-                                    `Duration: ${dur} min | Msgs: ${s.message_count} | ${fmtCost(s.total_cost || 0)}`
+                                    `Duration: ${durStr}`,
+                                    `Messages: ${s.message_count} | ${fmtCost(s.total_cost || 0)}`
                                 ];
                             }
                         }
@@ -507,6 +524,8 @@ async function renderSessions() {
                     x: {
                         type: 'linear',
                         position: 'top',
+                        min: rangeMin - totalRange * 0.02,
+                        max: rangeMax + totalRange * 0.02,
                         ticks: {
                             callback: v => {
                                 const d = new Date(v);
