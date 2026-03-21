@@ -1,5 +1,10 @@
 # Claude Radar
 
+[![npm version](https://img.shields.io/npm/v/claude-radar)](https://www.npmjs.com/package/claude-radar)
+[![tests](https://img.shields.io/badge/tests-86%20passed-brightgreen)]()
+[![coverage](https://img.shields.io/badge/coverage-72%25-yellow)]()
+[![license](https://img.shields.io/badge/license-MIT-blue)]()
+
 Monitor and visualize your **Claude Code** token usage, costs, and ROI across all your projects. Track every token, every commit, every dollar.
 
 **Your data never leaves your machine.**
@@ -225,6 +230,35 @@ Config is stored in `~/.claude-radar/config.json`:
 ```
 
 SQLite database at `~/.claude-radar/radar.db`. Run `claude-radar setup` to reconfigure, or use the Settings button in the dashboard.
+
+## Security
+
+- Server binds to **127.0.0.1 only** — not accessible from your local network
+- Origin checking on all HTTP and WebSocket connections — blocks cross-origin requests
+- Security headers: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`
+- Chart.js loaded with **SRI integrity hash** — CDN tampering detected
+- Git commands use `execFileSync` with array args — **no shell injection**
+- All SQLite queries use **parameterized placeholders**
+- All HTML output escaped via `escHtml()`/`escAttr()`
+- API limit parameters capped at 1000
+- `npm audit`: **0 vulnerabilities**
+
+## Testing
+
+```bash
+npm test          # 86 tests with coverage report
+```
+
+| Module | Coverage | Tests |
+|--------|----------|-------|
+| pricing.js | 100% | 12 |
+| parser.js | 96% | 8 |
+| db.js | 92% | 20 |
+| server.js | 76% | 26 |
+| git.js | 56% | 9 |
+| config.js | 29% | 4 |
+| mcp.js | 6% | 7 |
+| **Total** | **72%** | **86** |
 
 ## Requirements
 
