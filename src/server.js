@@ -152,6 +152,15 @@ function createServer(options = {}) {
     }
   });
 
+  // ── Live stats (5h billing window) ──────────────────
+  app.get('/api/live', (req, res) => {
+    try {
+      res.json(db.getWindowStats());
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── Project Detail ─────────────────────────────────
   app.get('/api/project/:id', (req, res) => {
     try {

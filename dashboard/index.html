@@ -210,6 +210,10 @@
         </div>
         <nav class="sidebar-nav">
             <div class="nav-section">Monitor</div>
+            <div class="nav-item" data-tab="live">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><path d="M20.2 20.2c2.04-2.03 .93-7.52-2.49-12.27C14.34 3.2 9.85 1.1 7.8 3.14 5.76 5.17 6.87 10.66 10.29 15.4c3.37 4.74 7.86 6.84 9.91 4.8z"/><path d="M3.8 3.8c-2.04 2.03-.93 7.52 2.49 12.27 3.37 4.73 7.86 6.83 9.9 4.8"/></svg>
+                Live
+            </div>
             <div class="nav-item active" data-tab="overview">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
                 Overview
@@ -264,6 +268,7 @@
             </select>
         </div>
 
+        <div class="tab-content" id="tab-live"><div id="live-app" style="position:relative;height:calc(100vh - 49px);overflow:hidden"><canvas id="live-canvas" style="display:block;width:100%;height:100%"></canvas></div></div>
         <div class="tab-content active" id="tab-overview"><div class="page" id="overview-app"><div class="loading"><div class="spinner"></div>Loading...</div></div></div>
         <div class="tab-content" id="tab-sessions"><div class="page" id="sessions-app"></div></div>
         <div class="tab-content" id="tab-tools"><div class="page" id="tools-app"></div></div>
@@ -328,6 +333,7 @@ navItems.forEach(item=>{
         const tab=item.dataset.tab;
         document.getElementById('tab-'+tab).classList.add('active');
         pageTitle.textContent=item.textContent.trim();
+        if(tab==='live')initLive();else destroyLive();
         if(tab==='sessions'&&currentData)renderSessions();
         if(tab==='tools'&&currentData)renderTools();
         if(tab==='git')renderGit();
@@ -712,13 +718,354 @@ async function renderInsights(){
     app.innerHTML=`<div class="card"><div class="card-header">Insights (${insights.length})</div>${insights.map(i=>`<div class="insight ${i.severity}"><div class="insight-title">${escHtml(i.title)}</div><div class="insight-detail">${escHtml(i.detail)}</div></div>`).join('')}</div>`;
 }
 
+// ── LIVE — CITY SKYLINE ─────────────────────────
+const live={
+  active:false,raf:null,ctx:null,w:0,h:0,
+  prevData:null,
+  buildings:[],
+  stars:Array.from({length:60},()=>({x:Math.random(),y:Math.random()*0.5,twinkle:Math.random()*Math.PI*2,bright:0})),
+  traffic:[],
+  skyHue:220,gaugeAnim:0,gauge5hAnim:0,
+  rateHist:new Float32Array(200),rateIdx:0,
+  lastRefresh:0,
+  stats:{rate:0,totalTokens:0,cost:0,cacheRate:0,model:'—',msgs:0,input:0,output:0,
+    billingPct:0,billingLabel:'',
+    window5hPct:0,window5hRemain:'',window5hRestart:'',
+    projects:0}
+};
+
+function initLive(){
+  if(live.active)return;
+  live.active=true;
+  const c=document.getElementById('live-canvas');
+  const p=c.parentElement;
+  c.width=p.clientWidth;c.height=p.clientHeight;
+  live.ctx=c.getContext('2d');live.w=c.width;live.h=c.height;
+  window.addEventListener('resize',resizeLive);
+  fetchLiveData().then(()=>liveLoop());
+  live.pollTimer=setInterval(()=>{if(live.active)fetchLiveData();},5000);
+}
+function destroyLive(){
+  live.active=false;
+  if(live.raf)cancelAnimationFrame(live.raf);
+  live.raf=null;
+  if(live.pollTimer)clearInterval(live.pollTimer);
+  live.pollTimer=null;
+  window.removeEventListener('resize',resizeLive);
+}
+function resizeLive(){
+  if(!live.active)return;
+  const c=document.getElementById('live-canvas');
+  const p=c.parentElement;
+  c.width=p.clientWidth;c.height=p.clientHeight;
+  live.w=c.width;live.h=c.height;
+}
+
+async function fetchLiveData(){
+  try{
+    const [data, liveData] = await Promise.all([
+      fetch('/api/data').then(r=>r.json()),
+      fetch('/api/live').then(r=>r.json()).catch(()=>({}))
+    ]);
+    const s=data.summary,sub=data.subscription||{};
+    const prev=live.prevData;
+
+    // Calculate deltas for animation
+    const newTot=(s.totalInputTokens||0)+(s.totalOutputTokens||0);
+    const delta=prev?newTot-(prev.totalInputTokens||0)-(prev.totalOutputTokens||0):0;
+    const dt=(Date.now()-live.lastRefresh)/1000||1;
+    live.stats.rate=delta>0?Math.floor(delta/dt):live.stats.rate;
+    live.rateHist[live.rateIdx%200]=live.stats.rate;live.rateIdx++;
+
+    live.stats.totalTokens=s.totalTokens||0;
+    live.stats.cost=s.apiEquivalentCost||0;
+    live.stats.msgs=s.totalMessages||0;
+    live.stats.input=s.totalInputTokens||0;
+    live.stats.output=s.totalOutputTokens||0;
+    live.stats.model=Object.keys(data.modelUsage||{}).sort((a,b)=>(data.modelUsage[b].messages||0)-(data.modelUsage[a].messages||0))[0]||'—';
+    live.stats.projects=s.totalProjects||0;
+    const totalIn=(s.totalInputTokens||0)+(s.totalCacheRead||0);
+    live.stats.cacheRate=totalIn>0?((s.totalCacheRead||0)/totalIn*100):0;
+
+    // Gauge 1: Billing period (monthly) — show days left
+    if(sub.monthlyRate>0){
+      const daysInMonth=new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate();
+      const dayOfMonth=new Date().getDate();
+      const daysLeft=daysInMonth-dayOfMonth;
+      live.stats.billingPct=Math.min(100,dayOfMonth/daysInMonth*100);
+      live.stats.billingLabel=daysLeft+' days left';
+    }else{
+      live.stats.billingPct=0;
+      live.stats.billingLabel='no plan';
+    }
+
+    // Gauge 2: 5-hour billing window — from /api/live real data
+    const bw=liveData.billingWindow;
+    if(bw&&bw.msgs>0){
+      // Output tokens are the primary rate-limit factor
+      // Approximate cap based on plan: Max $100 ~= 1.5M output tok/5h, Max $200 ~= 3M
+      const rate=sub.monthlyRate||100;
+      const outputCap=rate<=20?500000:rate<=100?1500000:3000000;
+      // We don't have output-only from the API, so estimate from fresh tokens
+      // Fresh tokens = input + output, output is typically ~60-80% of fresh
+      const estimatedOutput=bw.freshTokens*0.7;
+      live.stats.window5hPct=Math.min(100,estimatedOutput/outputCap*100);
+      live.stats.window5hRemain=bw.msgs+' msgs / '+fmtTokens(bw.freshTokens);
+      if(bw.resetTime){
+        const rt=new Date(bw.resetTime);
+        live.stats.window5hRestart='resets '+rt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+      }else{
+        live.stats.window5hRestart='';
+      }
+    }else{
+      live.stats.window5hPct=0;
+      live.stats.window5hRemain='idle';
+      live.stats.window5hRestart='';
+    }
+
+    // Buildings: scale heights proportionally — tallest = most cost
+    const projs=data.projects||[];
+    const maxCost=Math.max(1,...projs.map(p=>p.totalCost||0));
+    const maxBuildingH=500;
+
+    if(live.buildings.length===0){
+      live.buildings=projs.slice(0,12).map((p,i)=>({
+        name:p.name||'unknown',
+        height:20+((p.totalCost||0)/maxCost)*maxBuildingH,
+        cost:p.totalCost||0,
+        color:PALETTE[i%PALETTE.length],
+        windows:[]
+      }));
+    }else{
+      projs.slice(0,12).forEach((p,i)=>{
+        const targetH=20+((p.totalCost||0)/maxCost)*maxBuildingH;
+        if(i<live.buildings.length){
+          const b=live.buildings[i];
+          const oldCost=b.cost;
+          const newCost=p.totalCost||0;
+          b.height+=(targetH-b.height)*0.15;
+          if(newCost>oldCost){
+            const isBurst=(newCost-oldCost)>1;
+            for(let j=0;j<(isBurst?6:2);j++){
+              b.windows.push({y:Math.random(),alpha:1,flicker:Math.random()*0.5+0.5});
+            }
+          }
+          b.cost=newCost;
+          b.name=p.name||b.name;
+        }else{
+          live.buildings.push({
+            name:p.name||'unknown',height:targetH,
+            cost:p.totalCost||0,
+            color:PALETTE[i%PALETTE.length],windows:[]
+          });
+        }
+      });
+    }
+
+    // Spawn effects on delta
+    if(delta>0&&prev){
+      const isBurst=delta>10000;
+      if((s.totalCacheRead||0)>(prev.totalCacheRead||0)){
+        for(let i=0;i<(isBurst?8:3);i++){
+          live.stars[Math.floor(Math.random()*live.stars.length)].bright=1;
+        }
+      }
+      for(let i=0;i<(isBurst?12:3);i++){
+        live.traffic.push({x:-20-Math.random()*60,speed:1+Math.random()*3,
+          color:Math.random()<.3?'#22c55e':'#4f8ff7',size:2+Math.random()*2});
+      }
+      live.skyHue=isBurst?20:delta>5000?35:delta>1500?180:220;
+    }
+
+    live.prevData=s;
+    live.lastRefresh=Date.now();
+  }catch(e){/* silent */}
+}
+
+function liveLoop(){
+  if(!live.active){return;}
+  live.raf=requestAnimationFrame(liveLoop);
+  drawCitySkyline();
+}
+
+function drawLiveGauge(ctx,gx,gy,gr,targetPct,animVal,label,subLabel,subLabel2){
+  const startA=Math.PI*0.75,endA=Math.PI*2.25;
+  const range=endA-startA;
+  const val=animVal;
+  const needleA=startA+val*range;
+  const gColor=val<0.5?'#22c55e':val<0.75?'#f59e0b':'#ef4444';
+
+  ctx.fillStyle='#0f1117cc';ctx.beginPath();ctx.arc(gx,gy+gr,gr+18,0,Math.PI*2);ctx.fill();
+  ctx.lineWidth=8;ctx.lineCap='round';
+  ctx.beginPath();ctx.arc(gx,gy+gr,gr,startA,endA);ctx.strokeStyle='#1e2130';ctx.stroke();
+  ctx.beginPath();ctx.arc(gx,gy+gr,gr,startA,needleA);
+  ctx.strokeStyle=gColor;ctx.lineWidth=8;ctx.lineCap='round';ctx.stroke();
+  ctx.shadowColor=gColor;ctx.shadowBlur=12;
+  ctx.beginPath();ctx.arc(gx,gy+gr,gr,needleA-0.08,needleA);ctx.stroke();
+  ctx.shadowBlur=0;
+
+  const nx=gx+Math.cos(needleA)*(gr-8),ny=gy+gr+Math.sin(needleA)*(gr-8);
+  ctx.beginPath();ctx.moveTo(gx,gy+gr);ctx.lineTo(nx,ny);
+  ctx.strokeStyle='#eaecf4';ctx.lineWidth=1.5;ctx.stroke();
+  ctx.beginPath();ctx.arc(gx,gy+gr,4,0,Math.PI*2);ctx.fillStyle='#eaecf4';ctx.fill();
+
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle=gColor;ctx.font='bold 16px Fira Code';
+  ctx.fillText(Math.round(val*100)+'%',gx,gy+gr+16);
+  ctx.fillStyle='#8b8fa3';ctx.font='bold 10px Fira Code';
+  ctx.fillText(label,gx,gy+gr+30);
+  ctx.fillStyle='#50546a';ctx.font='9px Fira Code';
+  ctx.fillText(subLabel,gx,gy+gr+42);
+  if(subLabel2){ctx.fillStyle='#3b4060';ctx.font='8px Fira Code';ctx.fillText(subLabel2,gx,gy+gr+54);}
+  ctx.textAlign='start';ctx.textBaseline='alphabetic';
+}
+
+function drawCitySkyline(){
+  const ctx=live.ctx,w=live.w,h=live.h;
+  if(!ctx||w<10||h<10)return;
+
+  // Sky gradient
+  live.skyHue+=(220-live.skyHue)*0.005;
+  const hue=live.skyHue;
+  const sr=hue<60?Math.floor(30+hue/60*40):8;
+  const sg=hue<60?Math.floor(10+hue/60*10):9+(hue>100?8:0);
+  const sb=hue>100?Math.floor(13+hue/220*25):13;
+  const skyGrad=ctx.createLinearGradient(0,0,0,h);
+  skyGrad.addColorStop(0,`rgb(${sr},${sg},${sb})`);
+  skyGrad.addColorStop(1,'#08090d');
+  ctx.fillStyle=skyGrad;ctx.fillRect(0,0,w,h);
+
+  // Stars — persistent 60, brighten green on cache hits
+  live.stars.forEach(s=>{
+    s.twinkle+=0.03;
+    s.bright=Math.max(0,s.bright-0.015);
+    const a=0.2+Math.sin(s.twinkle)*0.15+s.bright*0.6;
+    ctx.beginPath();
+    ctx.arc(s.x*w,s.y*h,s.bright>0.3?2.5:1,0,Math.PI*2);
+    ctx.fillStyle=s.bright>0.3?`rgba(34,197,94,${a})`:`rgba(234,236,244,${a})`;
+    ctx.fill();
+  });
+
+  // Ground
+  const groundY=h*0.82;
+  ctx.fillStyle='#0f1117';ctx.fillRect(0,groundY,w,h-groundY);
+  ctx.fillStyle='#262a3a';ctx.fillRect(0,groundY,w,2);
+
+  // Buildings — exact playground layout: full width, gap=12, bw/14 windows
+  const bCount=live.buildings.length||1;
+  const bw=Math.floor(w/bCount)-12;
+  const gap=12;
+  const maxH=h*0.65;
+
+  live.buildings.forEach((b,i)=>{
+    const bx=i*(bw+gap)+gap;
+    const bh=Math.min(b.height,maxH);
+    const by=groundY-bh;
+
+    ctx.fillStyle=b.color+'40';
+    ctx.fillRect(bx,by,bw,bh);
+    ctx.strokeStyle=b.color+'80';
+    ctx.lineWidth=1;
+    ctx.strokeRect(bx,by,bw,bh);
+
+    // Windows — exact playground: /14 divisor
+    const winCols=Math.max(2,Math.floor(bw/14));
+    const winRows=Math.max(2,Math.floor(bh/14));
+    for(let wy=0;wy<winRows;wy++){
+      for(let wx=0;wx<winCols;wx++){
+        const lit=b.windows.some(win=>Math.abs(win.y-wy/winRows)<0.15&&win.alpha>0.2);
+        ctx.fillStyle=lit?b.color+'cc':'#171923';
+        ctx.fillRect(bx+4+wx*(bw-8)/winCols,by+4+wy*(bh-8)/winRows,(bw-8)/winCols-2,(bh-8)/winRows-2);
+      }
+    }
+    b.windows=b.windows.filter(win=>{win.alpha-=0.01;return win.alpha>0;});
+
+    // Label
+    ctx.fillStyle='#eaecf4';ctx.font='9px Fira Code';ctx.textAlign='center';
+    ctx.fillText(b.name.slice(0,10),bx+bw/2,groundY+14);
+    ctx.fillStyle=b.color;ctx.font='8px Fira Code';
+    ctx.fillText(fmtCost(b.cost),bx+bw/2,groundY+26);
+    ctx.textAlign='start';
+  });
+
+  // Traffic
+  for(let i=live.traffic.length-1;i>=0;i--){
+    const t=live.traffic[i];
+    t.x+=t.speed;
+    if(t.x>w+20){live.traffic.splice(i,1);continue;}
+    ctx.beginPath();ctx.arc(t.x,groundY+40+Math.sin(t.x*0.05)*3,t.size,0,Math.PI*2);
+    ctx.fillStyle=t.color+'aa';ctx.fill();
+  }
+
+  // ── Gauge 1: Billing Period (top-right) ──
+  const g1x=w-90,g1y=10,g1r=42;
+  live.gaugeAnim+=(live.stats.billingPct/100-live.gaugeAnim)*0.06;
+  drawLiveGauge(ctx,g1x,g1y,g1r,live.stats.billingPct,live.gaugeAnim,
+    'BILLING',live.stats.billingLabel);
+
+  // ── Gauge 2: 5-Hour Window (below) ──
+  const g2x=w-90,g2y=g1y+g1r*2+56,g2r=42;
+  live.gauge5hAnim+=(live.stats.window5hPct/100-live.gauge5hAnim)*0.06;
+  drawLiveGauge(ctx,g2x,g2y,g2r,live.stats.window5hPct,live.gauge5hAnim,
+    '5H WINDOW',live.stats.window5hRemain,live.stats.window5hRestart);
+
+  // ── Stats Bar (bottom) ──
+  const barH=48,barY=h-barH;
+  ctx.fillStyle='#0f1117dd';ctx.fillRect(0,barY,w,barH);
+  ctx.fillStyle='#262a3a';ctx.fillRect(0,barY,w,1);
+
+  const statItems=[
+    {label:'TOK/SEC',value:fn(live.stats.rate),color:'#f59e0b'},
+    {label:'TOKENS',value:fmtTokens(live.stats.totalTokens),color:'#4f8ff7'},
+    {label:'COST',value:fmtCost(live.stats.cost),color:'#22c55e'},
+    {label:'CACHE',value:live.stats.cacheRate.toFixed(0)+'%',color:'#06b6d4'},
+    {label:'MODEL',value:(live.stats.model||'').replace('claude-','').slice(0,12),color:'#a855f7'},
+    {label:'MSGS',value:fn(live.stats.msgs),color:'#ec4899'},
+    {label:'INPUT',value:fmtTokens(live.stats.input),color:'#4f8ff7'},
+    {label:'OUTPUT',value:fmtTokens(live.stats.output),color:'#a855f7'},
+  ];
+  const statW=w/statItems.length;
+  statItems.forEach((s,i)=>{
+    const sx=i*statW+12;
+    ctx.fillStyle=s.color;ctx.font='bold 13px Fira Code';
+    ctx.fillText(s.value,sx,barY+20);
+    ctx.fillStyle='#50546a';ctx.font='8px Fira Code';
+    ctx.fillText(s.label,sx,barY+34);
+  });
+
+  // ── Sparkline (top-left) ──
+  ctx.fillStyle='#0f1117aa';ctx.fillRect(12,12,180,52);
+  ctx.fillStyle='#50546a';ctx.font='8px Fira Code';ctx.fillText('TOKEN RATE',20,26);
+  ctx.fillStyle='#f59e0b';ctx.font='bold 12px Fira Code';ctx.fillText(fn(live.stats.rate)+'/s',100,26);
+  ctx.beginPath();ctx.strokeStyle='#f59e0b88';ctx.lineWidth=1.5;
+  const spLen=Math.min(live.rateIdx,200);
+  const spMax=Math.max(1,...Array.from(live.rateHist));
+  for(let si=0;si<spLen;si++){
+    const idx=(live.rateIdx-spLen+si+200)%200;
+    const v=live.rateHist[idx]/spMax;
+    const px=20+si*(160/200);
+    const py=55-v*22;
+    si===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+  }
+  ctx.stroke();
+
+  // Live indicator
+  const pulse=0.5+Math.sin(Date.now()*0.004)*0.5;
+  ctx.beginPath();ctx.arc(w-20,h-barH-16,4,0,Math.PI*2);
+  ctx.fillStyle=`rgba(34,197,94,${0.3+pulse*0.7})`;ctx.fill();
+  ctx.fillStyle='#50546a';ctx.font='9px Fira Code';
+  ctx.fillText('LIVE',w-50,h-barH-12);
+  ctx.fillStyle='#262a3a';ctx.font='8px Fira Code';
+  ctx.fillText(live.stats.projects+' projects',w-110,h-barH-12);
+}
+
 // ── Notifications ────────────────────────────────
 let notifEnabled=false;
 if('Notification'in window&&Notification.permission==='granted')notifEnabled=true;
 function sendNotif(title,body){if(!notifEnabled)return;try{new Notification(title,{body});}catch{}}
 
 // ── WebSocket ────────────────────────────────────
-function connectWS(){try{const ws=new WebSocket('ws://'+location.host+'/ws');ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.type==='refresh'){loadAndRender();showToast('Live: '+(m.indexed||0)+' new files');sendNotif('Claude Radar',(m.indexed||0)+' files indexed');}};ws.onclose=()=>setTimeout(connectWS,5000);}catch{}}
+function connectWS(){try{const ws=new WebSocket('ws://'+location.host+'/ws');ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.type==='refresh'){loadAndRender();if(live.active)fetchLiveData();showToast('Live: '+(m.indexed||0)+' new files');sendNotif('Claude Radar',(m.indexed||0)+' files indexed');}};ws.onclose=()=>setTimeout(connectWS,5000);}catch{}}
 connectWS();
 
 // ── Report Generator ─────────────────────────────

@@ -889,9 +889,49 @@ async function reindexAll(onProgress) {
   return indexAll(onProgress);
 }
 
+function getWindowStats() {
+  return query(db => {
+    const result = { billingWindow: null };
+    const now = new Date();
+    const windowStart = new Date(now.getTime() - 5 * 60 * 60 * 1000);
+
+    const usage = db.prepare(`
+      SELECT COUNT(*) as msgs, COALESCE(SUM(cost),0) as cost,
+        COALESCE(SUM(input_tokens),0) as input_tokens,
+        COALESCE(SUM(output_tokens),0) as output_tokens,
+        COALESCE(SUM(cache_read),0) as cache_read,
+        COALESCE(SUM(cache_write),0) as cache_write
+      FROM messages WHERE type='assistant' AND timestamp >= ?
+    `).get(windowStart.toISOString());
+
+    const oldest = db.prepare(`
+      SELECT timestamp FROM messages WHERE type='assistant' AND timestamp >= ?
+      ORDER BY timestamp ASC LIMIT 1
+    `).get(windowStart.toISOString());
+
+    let resetTime = null;
+    if (oldest?.timestamp) {
+      resetTime = new Date(new Date(oldest.timestamp).getTime() + 5 * 60 * 60 * 1000);
+    }
+
+    const freshTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
+    const totalTokens = freshTokens + (usage.cache_read || 0) + (usage.cache_write || 0);
+
+    result.billingWindow = {
+      windowStart: windowStart.toISOString(),
+      resetTime: resetTime ? resetTime.toISOString() : null,
+      msgs: usage.msgs || 0,
+      freshTokens,
+      totalTokens,
+      cost: usage.cost || 0,
+    };
+    return result;
+  });
+}
+
 module.exports = {
   openDb, indexAll, reindexAll,
   getSummary, getProjects, getDailyUsage, getModelUsage,
   getSessions, getSessionDetail, getToolStats, getSubagents,
-  getProjectDailyTokens, getInsights,
+  getProjectDailyTokens, getInsights, getWindowStats,
 };
