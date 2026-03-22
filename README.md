@@ -1,107 +1,260 @@
+<div align="center">
+
+<img src="docs/screenshots/overview.png" width="48%" alt="overview">
+
 # Claude Radar
 
-[![npm version](https://img.shields.io/npm/v/claude-radar)](https://www.npmjs.com/package/claude-radar)
-[![tests](https://img.shields.io/badge/tests-86%20passed-brightgreen)]()
-[![coverage](https://img.shields.io/badge/coverage-72%25-yellow)]()
-[![license](https://img.shields.io/badge/license-MIT-blue)]()
+[![npm](https://img.shields.io/npm/v/claude-radar)](https://www.npmjs.com/package/claude-radar) 
+[![tests](https://img.shields.io/badge/tests-86%20passed-brightgreen)]() 
+[![license](https://img.shields.io/badge/license-MIT-blue)]() 
+[![audit](https://img.shields.io/badge/vulnerabilities-0-brightgreen)]()
 
-Monitor and visualize your **Claude Code** token usage, costs, and ROI across all your projects. Track every token, every commit, every dollar.
+**Know exactly where your tokens go.**
 
-**Your data never leaves your machine.**
-
-## Quick Start
+Local-first dashboard for Claude Code — track token usage, costs, ROI, and git cost-per-commit across all your projects. Your data never leaves your machine.
 
 ```bash
 npx claude-radar
 ```
 
-This will:
-1. Ask your subscription plan (first run only)
-2. Index your `~/.claude/` data into a local SQLite database
-3. Scan your project git repos for commit-to-cost mapping
-4. Open the dashboard at `http://localhost:3400`
+</div>
 
-## Features
+<p align="center">
+  <img src="docs/screenshots/live.png" width="48%" alt="live">
+</p>
 
-### Executive Dashboard
-- Total cost vs API equivalent value with ROI multiplier
-- Token breakdown (input, output, cache read, cache write)
-- Messages, sessions, and active days at a glance
-- Cache efficiency percentage and savings analysis
+## ⚡ Quick Start
 
-### 15+ Interactive Charts
-- Daily API value (bar chart)
-- Cost by project (doughnut)
-- Daily tokens — input vs output (stacked bar)
-- Model distribution (doughnut)
-- Cache read vs write (stacked bar)
-- Messages per day (line)
-- Cost per model (horizontal bar)
-- Daily tokens by project (stacked bar)
-- Project cost ranking (horizontal bar)
-- Cumulative API value (area line)
-- Git cost by project (horizontal bar)
-- Git commit timeline by project (stacked bar)
-- Tool usage distribution (doughnut + bar)
+```bash
+npx claude-radar
 
-### Git-to-Cost Tracking
-**Nobody else has this.** Every git commit mapped to its Claude Code session cost:
-- Cost per commit, per branch, per line of code
-- Most expensive commits ranked
-- Project cost breakdown by git activity
-- Timeline of commit costs over time
-- Branch-level cost aggregation
+# Or install globally
+npm install -g claude-radar
+claude-radar serve
+```
 
-### Session Browser with Gantt Timeline
-- Visual Gantt chart showing sessions as time-range bars, colored by project
-- Browse all sessions with project, branch, messages, cost
-- Click any session to see full detail:
-  - Message timeline with content previews
-  - Tool usage breakdown per session
-  - Subagent hierarchy with individual costs
-  - Token and cost metrics
+Opens the dashboard at `http://localhost:3400`. First run indexes your `~/.claude/` data (~5s).
 
-### Tool & Skill Analytics
-- All Claude Code tools ranked by usage (Read, Bash, Edit, Grep, etc.)
-- Per-tool session and project counts
-- Subagent list with costs and message counts
+## ✨ Features
 
-### AI Insights Engine
-10 automated detection rules:
-- **Cost spike detection** — days exceeding 3x daily average
-- **Cost forecasting** — project current month spend to month-end
-- **5-hour billing window** — current window usage, remaining time, windows used today
-- **Cache efficiency warnings** — projects with low hit rates
-- **Cache optimization tips** — actionable recommendations per project
-- **High cache churn** — warns when context is recreated too frequently
-- **Usage concentration** — single project dominating spend
-- **Model diversity** — suggests cheaper models for simpler tasks
-- **Inactive projects** — high-spend projects with no recent activity
-- **Cost trend** — warns if cost per message is increasing
+<details>
+<summary>🌃 Live Token Visualization</summary>
+<br>
 
-### PII Redaction
-Automatic detection and redaction in message previews:
-- API keys (Anthropic, OpenAI, AWS)
-- GitHub/GitLab tokens
-- JWTs and private keys
-- Email addresses and IP addresses
-- Slack tokens
+**Real-time canvas visualization.** Each building = a project, height = cost. Stars twinkle on cache hits, sky shifts with spend intensity. Billing gauges, token rate sparkline, and stats bar overlay.
 
-### Real-Time Updates
-- WebSocket watches `~/.claude/projects/` for file changes
-- Dashboard updates automatically as you code
-- Browser notifications on new data (optional, click bell icon to enable)
-- Live indicator in header
+</details>
 
-### Report Generator
-- Click "Report" to download a self-contained HTML report
-- Includes: KPI summary, project breakdown, model usage, git cost analysis
-- Clean, printable format — share with your team or manager
+<details>
+<summary>📊 Executive Dashboard</summary>
+<br>
 
-### MCP Server
-Let Claude answer questions about your usage directly in conversation:
+**Three hero KPIs (paid vs API value vs ROI), 20+ interactive charts, project/model breakdown tables, activity heatmap.** Everything you need at a glance.
 
-**Add to** `~/.claude/settings.json`:
+</details>
+
+<details>
+<summary>🔗 Git-to-Cost Tracking</summary>
+<br>
+
+**Every git commit mapped to its Claude session cost.** Cost per commit, per branch, per line of code. Most expensive commits ranked. Nobody else has this.
+
+</details>
+
+<details>
+<summary>💬 Session Browser</summary>
+<br>
+
+**Gantt timeline, efficiency grades (A-F), duration tracking, cost-per-hour.** Click any session for full message replay with token burn timeline.
+
+</details>
+
+<details>
+<summary>🧠 AI Insights Engine</summary>
+<br>
+
+**12 automated detection rules: cost spikes, cache efficiency, 5-hour billing window, model recommendations, usage concentration, inactive projects, and more.**
+
+</details>
+
+<details>
+<summary>🎛️ "What If" Cost Simulator</summary>
+<br>
+
+**Interactive sliders: what if you shifted model usage? What if cache improved? See projected savings instantly.**
+
+</details>
+
+<details>
+<summary>📅 Activity Heatmap</summary>
+<br>
+
+**GitHub-style 7×24 grid showing when you code with Claude most, by hour and day of week.**
+
+</details>
+
+<details>
+<summary>🏷️ Session Clustering</summary>
+<br>
+
+**Auto-classifies sessions by work type: bug fixing, exploration, greenfield, refactoring, testing, review.** Cost breakdown per type.
+
+</details>
+
+<details>
+<summary>🔧 Tool & Subagent Analytics</summary>
+<br>
+
+**Tool usage distribution, call patterns, subagent cost tree.** See which tools Claude uses most and how subagents contribute to cost.
+
+</details>
+
+<details>
+<summary>🤖 MCP Server</summary>
+<br>
+
+**5 tools for querying usage directly from Claude.** "How much have I spent?" "Which project costs most?" Add to settings.json and ask.
+
+</details>
+
+<details>
+<summary>⚡ CLI Quick Stats</summary>
+<br>
+
+**`claude-radar stats` prints usage summary to terminal.** Supports `--json` for scripting. No browser needed.
+
+</details>
+
+<details>
+<summary>🔖 Session Bookmarks</summary>
+<br>
+
+**Tag and annotate important sessions for quick access later.**
+
+</details>
+
+<details>
+<summary>⌨️ Keyboard Shortcuts</summary>
+<br>
+
+**1-7 to switch tabs, ? for help, R to refresh.** Full keyboard navigation.
+
+</details>
+
+<details>
+<summary>📄 Report Generator</summary>
+<br>
+
+**One-click HTML report with KPIs, project table, model breakdown, git costs, and week-over-week comparison.**
+
+</details>
+
+<details>
+<summary>🔒 PII Redaction</summary>
+<br>
+
+**Auto-redacts API keys, tokens, JWTs, emails, IPs in message previews.** 10 pattern types.
+
+</details>
+
+<details>
+<summary>🎨 3 Themes</summary>
+<br>
+
+**Dark (default), Light, and High Contrast.**
+
+</details>
+
+<details>
+<summary>📡 Real-time Updates</summary>
+<br>
+
+**WebSocket watches ~/.**claude/ for changes. Dashboard updates as you code. Optional browser notifications.
+
+</details>
+
+<details>
+<summary>📦 Export</summary>
+<br>
+
+**JSON, CSV, and HTML report exports.** All respect current date filters.
+
+</details>
+
+## 📦 Release Notes
+
+<details>
+<summary><strong>v2.2.0</strong> — The Analytics Update (latest)</summary>
+<br>
+
+- 🎛️ **"What If" Cost Simulator** — model switching & cache improvement calculator
+- 📅 **Activity Heatmap** — GitHub-style hour × day grid
+- 📈 **Prompt Efficiency Scoring** — A-F grades per session
+- 🏷️ **Session Clustering** — auto-classify: bug fixing, exploration, greenfield, refactoring
+- 💰 **Budget Alerts** — monthly budget tracking with burn-down gauge
+- ⚡ **CLI Quick Stats** — `claude-radar stats` terminal command
+- 🔖 **Session Bookmarks** — tag & annotate sessions
+- ⌨️ **Keyboard Shortcuts** — 1-7 tabs, ? help, R refresh
+- 🧠 **Model Recommendations** — "switch to Haiku and save $X"
+- 🔧 **Subagent Cost Tree** — parent → child cost hierarchy
+- 📄 **Week-over-week Comparison** — report generator with delta arrows
+- 💡 **Tooltip Help** — ? icons on every chart explaining what it shows
+- 📟 **5h Window Gauge** — real % from Claude statusline hook
+- 🗂️ **New JSONL fields** — speed, web_search, web_fetch, sidechain indexing
+- 📊 **Cost per Line** — LoC/$ charts on Git Costs tab
+
+</details>
+
+<details>
+<summary><strong>v2.1.0</strong> — Live Page</summary>
+<br>
+
+- 🌃 **Live City Skyline** — real-time canvas visualization with buildings per project
+- 📟 **Billing gauges** — billing period + 5-hour window
+- 📈 **Token rate sparkline** — top-left rate history
+- 📊 **Stats bar overlay** — tok/sec, tokens, cost, cache, model, msgs
+- 🔄 **WebSocket + polling** — live data refresh every 5s
+- `/api/live` endpoint for 5h window stats
+- `/api/project/:id` and `/api/projects` endpoints
+
+</details>
+
+<details>
+<summary><strong>v2.0.0</strong> — Initial Release</summary>
+<br>
+
+- 📊 Executive dashboard with 15+ charts
+- 🔗 Git-to-cost tracking (cost per commit, branch, line)
+- 💬 Session browser with Gantt timeline
+- 🧠 AI Insights Engine (10 detection rules)
+- 🔧 Tool & subagent analytics
+- 🤖 MCP server with 5 tools
+- 📄 Report generator
+- 🔒 PII redaction (10 patterns)
+- 🎨 3 themes (dark, light, contrast)
+- 📡 Real-time WebSocket updates
+- 🧪 86 tests, 72% coverage
+- 🔐 Security: localhost-only, origin checking, parameterized SQL, SRI
+
+</details>
+
+## 💻 Commands
+
+| Command | Description |
+|---------|-------------|
+| `npx claude-radar` | Start dashboard (default) |
+| `claude-radar stats` | Print usage summary to terminal |
+| `claude-radar stats --json` | JSON output for scripting |
+| `claude-radar serve -p 8080` | Custom port |
+| `claude-radar serve --no-open` | Don't auto-open browser |
+| `claude-radar setup` | Configure subscription plan |
+| `claude-radar mcp` | Start MCP server (stdio) |
+
+## 🤖 MCP Server
+
+Let Claude answer questions about your usage in conversation.
+
+Add to `~/.claude/settings.json`:
 
 ```json
 {
@@ -114,157 +267,63 @@ Let Claude answer questions about your usage directly in conversation:
 }
 ```
 
-Then ask Claude:
-- "How much have I spent on Claude Code?"
-- "Which project uses the most tokens?"
-- "What was my usage last week?"
-- "Am I getting good value from my Max plan?"
+Then ask: *"How much have I spent?"* · *"Which project costs most?"* · *"Am I getting good ROI?"*
 
-**MCP Tools:**
+## 📟 5-Hour Window Tracking
 
-| Tool | Description |
-|------|-------------|
-| `get_usage_summary` | Overall usage, costs, ROI |
-| `get_project_cost` | Per-project breakdown or ranked list |
-| `get_daily_usage` | Daily usage for a date range |
-| `get_model_breakdown` | Token/cost split by model |
-| `get_billing_estimate` | Subscription value analysis and projections |
+Claude Radar can show your real-time 5-hour billing window usage on the Live page.
 
-### Date Range Filtering
-- All views and charts support start/end date filtering
-- Filter from the header — applies globally to every tab and export
+Update your statusline in `~/.claude/settings.json` to use the Claude Radar hook:
 
-### Export
-- **JSON** — Full data dump with all metrics
-- **CSV** — Project breakdown spreadsheet
-- **HTML Report** — Shareable formatted report with charts
-- All exports respect current date filters
-
-### Themes
-- Dark (default)
-- Light
-- High Contrast
-
-### Web UI Settings
-- Change subscription plan from the dashboard
-- Regenerate/re-index data without restarting
-- No terminal needed after first launch
-
-## Installation
-
-```bash
-# Run directly (no install needed)
-npx claude-radar
-
-# Or install globally
-npm install -g claude-radar
-claude-radar serve
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "bash /path/to/claude-radar/bin/statusline-hook.sh"
+  }
+}
 ```
 
-## Commands
+This captures `rate_limits.five_hour.used_percentage` and `resets_at` from Claude Code and feeds it to the dashboard gauge.
 
-| Command | Description |
-|---------|-------------|
-| `claude-radar` | Start the dashboard (default) |
-| `claude-radar setup` | Configure your subscription plan |
-| `claude-radar serve` | Start dashboard server |
-| `claude-radar serve -p 8080` | Use a custom port |
-| `claude-radar serve --no-open` | Don't auto-open browser |
-| `claude-radar generate` | Export data to `data.json` |
-| `claude-radar mcp` | Start the MCP server (stdio) |
+## ⚙️ How It Works
 
-## How It Works
+Claude Code stores detailed usage data in `~/.claude/`. Claude Radar:
 
-Claude Code stores detailed usage data locally in `~/.claude/`:
+1. **Indexes** JSONL files into SQLite (incremental — first run ~5s, subsequent instant)
+2. **Deduplicates** by UUID (other tools overcount by ~12%)
+3. **Correlates** git commits with session time ranges for cost-per-commit
+4. **Serves** via Express with 25+ REST endpoints + WebSocket
+5. **Watches** for changes and updates in real-time
 
-- **Session logs** (`projects/*/session.jsonl`) — Per-message token counts, model, timestamps
-- **Stats cache** (`stats-cache.json`) — Aggregated daily activity
-- **History** (`history.jsonl`) — Command history with project mapping
-
-Claude Radar:
-1. **Indexes** all JSONL files into a local SQLite database (incremental — first run ~5s, subsequent runs instant)
-2. **Deduplicates** messages by UUID (other tools overcount by ~12%)
-3. **Scans** git repos in your project directories for commit history
-4. **Correlates** commit timestamps with session time ranges to calculate cost per commit
-5. **Serves** everything via Express with 20 REST API endpoints + WebSocket
-6. **Watches** for file changes and updates the dashboard in real-time
-
-## Architecture
+## 🏗️ Architecture
 
 ```
 ~/.claude/ (read-only)          Claude Radar
 ┌─────────────────────┐        ┌──────────────────────────────┐
-│ projects/            │──────▶│ SQLite Indexer (incremental)  │
-│   *.jsonl            │       │ Git Scanner (commit mapping)  │
-│ stats-cache.json     │       │ Express Server (20 APIs)      │
-│ history.jsonl        │       │ WebSocket (live updates)      │
-└─────────────────────┘       │ MCP Server (5 tools, stdio)   │
-                               └──────────┬───────────────────┘
-Your project repos                        │
-┌─────────────────────┐                   ▼
+│ projects/*.jsonl     │──────▶│ SQLite Indexer (incremental)  │
+│ stats-cache.json     │       │ Git Scanner (commit mapping)  │
+│ history.jsonl        │       │ Express Server (25+ APIs)     │
+└─────────────────────┘       │ WebSocket (live updates)      │
+                               │ MCP Server (5 tools, stdio)   │
+Your git repos                 └──────────┬───────────────────┘
+┌─────────────────────┐                   │
 │ .git/ (commit logs)  │──────▶ Dashboard (localhost:3400)
-└─────────────────────┘        5 tabs, 15+ charts, 3 themes
+└─────────────────────┘        8 tabs · 20+ charts · 3 themes
 ```
 
-## Subscription Plans
+## 🔐 Security
 
-| Plan | Monthly Cost |
-|------|-------------|
-| Pro | $20/month |
-| Max | $100/month |
-| Max | $200/month |
-| Team | Custom rate |
+- Binds to **127.0.0.1 only** — not accessible from LAN
+- Origin checking on all HTTP and WebSocket connections
+- Parameterized SQL · Escaped HTML · `execFileSync` (no shell injection)
+- Chart.js with SRI hash · PII auto-redacted · `npm audit`: **0 vulnerabilities**
 
-The dashboard shows **actual subscription cost** alongside **API equivalent value**. For example, a Max $100/month user might see $5,000+ in API equivalent value — a 50x ROI.
-
-## Configuration
-
-Config is stored in `~/.claude-radar/config.json`:
-
-```json
-{
-  "plan": "max_100",
-  "monthlyRate": 100,
-  "claudeDir": "/Users/you/.claude"
-}
-```
-
-SQLite database at `~/.claude-radar/radar.db`. Run `claude-radar setup` to reconfigure, or use the Settings button in the dashboard.
-
-## Security
-
-- Server binds to **127.0.0.1 only** — not accessible from your local network
-- Origin checking on all HTTP and WebSocket connections — blocks cross-origin requests
-- Security headers: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`
-- Chart.js loaded with **SRI integrity hash** — CDN tampering detected
-- Git commands use `execFileSync` with array args — **no shell injection**
-- All SQLite queries use **parameterized placeholders**
-- All HTML output escaped via `escHtml()`/`escAttr()`
-- API limit parameters capped at 1000
-- `npm audit`: **0 vulnerabilities**
-
-## Testing
-
-```bash
-npm test          # 86 tests with coverage report
-```
-
-| Module | Coverage | Tests |
-|--------|----------|-------|
-| pricing.js | 100% | 12 |
-| parser.js | 96% | 8 |
-| db.js | 92% | 20 |
-| server.js | 76% | 26 |
-| git.js | 56% | 9 |
-| config.js | 29% | 4 |
-| mcp.js | 6% | 7 |
-| **Total** | **72%** | **86** |
-
-## Requirements
+## 📋 Requirements
 
 - Node.js 18+
-- Claude Code installed (with usage data in `~/.claude/`)
-- Git (for git-to-cost tracking)
+- Claude Code installed (with data in `~/.claude/`)
+- Git (for commit cost tracking)
 
 ## License
 

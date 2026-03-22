@@ -124,7 +124,11 @@
             padding: 18px; transition: border-color var(--transition);
         }
         .card:hover { border-color: var(--border-hover); }
-        .card-header { font-size: 12px; font-weight: 600; color: var(--text-2); margin-bottom: 14px; text-transform: uppercase; letter-spacing: .3px; }
+        .card-header { font-size: 12px; font-weight: 600; color: var(--text-2); margin-bottom: 14px; text-transform: uppercase; letter-spacing: .3px; display: flex; align-items: center; gap: 6px; }
+        .help-tip { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--text-3); color: var(--text-3); font-size: 9px; font-weight: 700; cursor: help; flex-shrink: 0; text-transform: none; letter-spacing: 0; }
+        .help-tip:hover { border-color: var(--blue); color: var(--blue); }
+        .help-tip .tip-text { display: none; position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: var(--bg-3); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; font-size: 11px; font-weight: 400; color: var(--text-1); white-space: normal; width: 220px; line-height: 1.5; z-index: 50; box-shadow: 0 4px 12px rgba(0,0,0,.3); text-transform: none; letter-spacing: 0; }
+        .help-tip:hover .tip-text { display: block; }
         .span-8 { grid-column: span 8; } .span-4 { grid-column: span 4; }
         .span-6 { grid-column: span 6; } .span-12 { grid-column: span 12; }
         .chart-wrap { position: relative; width: 100%; }
@@ -187,6 +191,30 @@
         .spinner { width:28px; height:28px; border:2px solid var(--border); border-top-color:var(--blue); border-radius:50%; animation:spin .7s linear infinite; margin-right:10px; }
         @keyframes spin { to { transform:rotate(360deg); } }
 
+        /* ── Heatmap ────────────────────────────────── */
+        .heatmap-grid{display:grid;grid-template-columns:36px repeat(24,1fr);gap:2px;font-size:9px}
+        .heatmap-cell{border-radius:2px;height:18px}
+        .heatmap-label{display:flex;align-items:center;color:var(--text-3);font-size:9px}
+        .heatmap-hours{display:grid;grid-template-columns:36px repeat(24,1fr);gap:2px;margin-bottom:2px}
+
+        /* ── Efficiency Badge ───────────────────────── */
+        .eff-badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:700;font-family:'Fira Code',monospace}
+
+        /* ── Simulator ──────────────────────────────── */
+        .sim-slider-wrap{margin-bottom:20px}
+        .sim-slider-wrap label{display:block;font-size:12px;color:var(--text-2);margin-bottom:6px}
+        .sim-slider-wrap input[type=range]{width:100%;accent-color:var(--blue)}
+        .sim-result{display:flex;gap:16px;margin-top:16px;flex-wrap:wrap}
+        .sim-card{flex:1;min-width:140px;background:var(--bg-1);border:1px solid var(--border);border-radius:var(--radius);padding:14px;text-align:center}
+        .sim-card .sv{font-size:20px;font-weight:700;font-family:'Fira Code',monospace}
+        .sim-card .sl{font-size:10px;color:var(--text-3);margin-top:3px;text-transform:uppercase}
+
+        /* ── Subagent Tree ──────────────────────────── */
+        .tree-node{margin-left:18px;border-left:1px solid var(--border);padding-left:12px;margin-bottom:4px}
+        .tree-toggle{cursor:pointer;user-select:none;font-size:12px;padding:4px 0;display:flex;align-items:center;gap:6px}
+        .tree-toggle:hover{color:var(--blue)}
+        .tree-cost-bar{display:inline-block;height:6px;border-radius:3px;background:var(--purple);margin-left:8px}
+
         /* ── Responsive ──────────────────────────────── */
         @media (max-width:1200px) { .bento { grid-template-columns: repeat(6,1fr); } .span-8,.span-4 { grid-column: span 6; } }
         @media (max-width:768px) {
@@ -239,6 +267,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                 Insights
             </div>
+            <div class="nav-item" data-tab="simulator">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+                Simulator
+            </div>
         </nav>
         <div class="sidebar-footer">
             <div class="meta"><span class="live-dot"></span><span id="sidebar-meta">Connecting...</span></div>
@@ -275,6 +307,21 @@
         <div class="tab-content" id="tab-project"><div class="page" id="project-app"></div></div>
         <div class="tab-content" id="tab-git"><div class="page" id="git-app"></div></div>
         <div class="tab-content" id="tab-insights"><div class="page" id="insights-app"></div></div>
+        <div class="tab-content" id="tab-simulator"><div class="page" id="simulator-app"></div></div>
+    </div>
+
+    <!-- Shortcuts Modal -->
+    <div class="modal-overlay" id="shortcuts-modal">
+        <div class="modal">
+            <h2>Keyboard Shortcuts</h2>
+            <table>
+                <tr><td class="mono" style="width:60px">1-7</td><td>Switch tabs</td></tr>
+                <tr><td class="mono">?</td><td>Show this help</td></tr>
+                <tr><td class="mono">r</td><td>Refresh data</td></tr>
+                <tr><td class="mono">Esc</td><td>Close modal</td></tr>
+            </table>
+            <div class="modal-actions" style="margin-top:14px"><button class="btn" onclick="document.getElementById('shortcuts-modal').classList.remove('open')">Close</button></div>
+        </div>
     </div>
 
     <!-- Settings Modal -->
@@ -292,6 +339,8 @@
                 <label>Monthly Rate ($)</label>
                 <input type="number" id="setting-rate" placeholder="e.g. 150" />
             </div>
+            <label>Monthly Budget (API value $)</label>
+            <input type="number" id="setting-budget" placeholder="e.g. 500" />
             <div class="modal-actions">
                 <button class="btn" onclick="closeSettings()">Cancel</button>
                 <button class="btn btn-primary" onclick="saveSettings()">Save</button>
@@ -312,7 +361,65 @@ function fmt(n,d=0){if(n>=1e9)return(n/1e9).toFixed(1)+'B';if(n>=1e6)return(n/1e
 function fmtCost(n){return'$'+(n||0).toFixed(2);}
 function fmtTokens(n){if(n>=1e6)return(n/1e6).toFixed(2)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return String(n||0);}
 function fmtDate(s){return new Date(s).toLocaleDateString('en-US',{month:'short',day:'numeric'});}
+function tip(t){return`<span class="help-tip">?<span class="tip-text">${t}</span></span>`;}
+const TIPS={
+  dailyCost:'Daily API-equivalent cost based on token usage and model pricing.',
+  byProject:'Cost distribution across your projects. Hover for exact values.',
+  tokensIO:'Input tokens (your prompts) vs output tokens (Claude responses) per day.',
+  modelDist:'How many messages each Claude model handled.',
+  cache:'Cache read tokens (free reuse) vs cache write tokens (new context stored).',
+  msgsDay:'Number of messages exchanged with Claude per day.',
+  costModel:'Total API-equivalent cost attributed to each model.',
+  projDaily:'Daily token consumption broken down by project.',
+  cumulative:'Running total of API value generated over time.',
+  projTable:'All projects ranked by cost with token breakdown and share.',
+  modelTable:'Per-model token and cost breakdown.',
+  gantt:'Visual timeline showing when each session started and ended.',
+  sessionList:'All sessions with project, branch, duration, and cost.',
+  clusters:'Sessions auto-classified by work type based on tool usage patterns.',
+  gitProj:'AI cost attributed to each project via git commit correlation.',
+  gitTimeline:'Daily commit cost trend broken down by project.',
+  gitBranch:'Cost breakdown by git branch.',
+  gitExpensive:'Commits ranked by estimated AI cost.',
+  costPerLine:'How much each line of code cost in AI assistance.',
+  cplTrend:'Daily trend of cost per changed line of code.',
+  toolUsage:'Distribution of Claude Code tool invocations.',
+  toolBar:'Tools ranked by total call count.',
+  toolTable:'All tools with call count, session spread, and project spread.',
+  subagents:'Subagents spawned during sessions with their cost.',
+  subTree:'Session-to-subagent hierarchy showing cost at each level.',
+  insights:'Automated analysis of your usage patterns with actionable tips.',
+  heatmap:'When you use Claude most — by hour and day of week.',
+  simModel:'Estimate savings by shifting usage between models.',
+  simCache:'Estimate savings from improved cache hit rates.',
+  bookmarks:'Sessions you bookmarked for quick access.',
+  efficiency:'A-F grade based on cache usage, output ratio, and cost per message.',
+};
 function fmtDateTime(s){if(!s)return'-';return new Date(s).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}
+
+// ── Efficiency & Duration ────────────────────────
+function calcEfficiency(s){
+  const inp=s.total_input_tokens||0,out=s.total_output_tokens||0,cr=s.total_cache_read||0;
+  const ioScore=Math.min((out/Math.max(inp,1))/0.5,1);
+  const totalIn=inp+cr;const cacheScore=totalIn>0?cr/totalIn:0;
+  const cpm=s.message_count>0?(s.total_cost||0)/s.message_count:1;
+  const costScore=Math.max(0,1-cpm/0.5);
+  const score=ioScore*0.3+cacheScore*0.4+costScore*0.3;
+  const grades=['F','D','C','B','A'];
+  return{score:Math.round(score*100),grade:grades[Math.min(Math.floor(score*5),4)]};
+}
+function gradeColor(g){return{A:'#22c55e',B:'#06b6d4',C:'#f59e0b',D:'#ef4444',F:'#ef4444'}[g]||'#8b8fa3';}
+function fmtDuration(s){
+  if(!s||!s.first_timestamp||!s.last_timestamp)return'-';
+  const mins=Math.round((new Date(s.last_timestamp)-new Date(s.first_timestamp))/60000);
+  if(mins<0)return'-';
+  return mins>=60?Math.floor(mins/60)+'h '+mins%60+'m':mins+'m';
+}
+function sessionCostPerHr(s){
+  if(!s||!s.first_timestamp||!s.last_timestamp)return null;
+  const hrs=(new Date(s.last_timestamp)-new Date(s.first_timestamp))/3600000;
+  return hrs>0?(s.total_cost||0)/hrs:null;
+}
 
 // ── Chart config ─────────────────────────────────
 Chart.defaults.color='#8b8fa3';Chart.defaults.borderColor='rgba(42,45,62,0.4)';
@@ -339,6 +446,7 @@ navItems.forEach(item=>{
         if(tab==='git')renderGit();
         if(tab==='project')renderProjectPicker();
         if(tab==='insights')renderInsights();
+        if(tab==='simulator')renderSimulator();
     });
 });
 
@@ -352,11 +460,11 @@ function clearDateFilter(){dateFilter={};document.getElementById('start-date').v
 
 // ── Toast / Settings ─────────────────────────────
 function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
-async function openSettings(){const r=await fetch('/api/config');const{config}=await r.json();document.getElementById('setting-plan').value=config.plan||'max_100';document.getElementById('setting-rate').value=config.monthlyRate||'';toggleCustomRate();document.getElementById('settings-modal').classList.add('open');}
+async function openSettings(){const r=await fetch('/api/config');const{config}=await r.json();document.getElementById('setting-plan').value=config.plan||'max_100';document.getElementById('setting-rate').value=config.monthlyRate||'';document.getElementById('setting-budget').value=config.monthlyBudget||'';toggleCustomRate();document.getElementById('settings-modal').classList.add('open');}
 function closeSettings(){document.getElementById('settings-modal').classList.remove('open');}
 function toggleCustomRate(){document.getElementById('custom-rate-row').style.display=document.getElementById('setting-plan').value==='team'?'block':'none';}
 document.getElementById('settings-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeSettings();});
-async function saveSettings(){const plan=document.getElementById('setting-plan').value;const rate=plan==='team'?parseFloat(document.getElementById('setting-rate').value)||0:PLAN_RATES[plan]||100;await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plan,monthlyRate:rate})});closeSettings();showToast('Settings saved');loadAndRender();}
+async function saveSettings(){const plan=document.getElementById('setting-plan').value;const rate=plan==='team'?parseFloat(document.getElementById('setting-rate').value)||0:PLAN_RATES[plan]||100;const budget=parseFloat(document.getElementById('setting-budget').value)||0;await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plan,monthlyRate:rate,monthlyBudget:budget})});closeSettings();showToast('Settings saved');loadAndRender();}
 
 function exportData(f){const p=new URLSearchParams(dateFilter);window.open('/api/export/'+f+'?'+p.toString());}
 async function regenerate(){const b=document.getElementById('btn-regen');b.disabled=true;try{await fetch('/api/regenerate',{method:'POST'});await loadAndRender();showToast('Data refreshed');}finally{b.disabled=false;}}
@@ -393,26 +501,26 @@ function renderOverview(data){
             <div class="stat-item"><div class="s-val">${fmtTokens(s.totalOutputTokens)}</div><div class="s-lbl">Output</div></div>
         </div>
         <div class="bento">
-            <div class="card span-8"><div class="card-header">Daily API Value</div><div class="chart-wrap chart-h-lg"><canvas id="c-daily-cost"></canvas></div></div>
-            <div class="card span-4"><div class="card-header">By Project</div><div class="chart-wrap chart-h-lg"><canvas id="c-project-pie"></canvas></div></div>
+            <div class="card span-8"><div class="card-header">Daily API Value ${tip(TIPS.dailyCost)}</div><div class="chart-wrap chart-h-lg"><canvas id="c-daily-cost"></canvas></div></div>
+            <div class="card span-4"><div class="card-header">By Project ${tip(TIPS.byProject)}</div><div class="chart-wrap chart-h-lg"><canvas id="c-project-pie"></canvas></div></div>
         </div>
         <div class="bento">
-            <div class="card span-6"><div class="card-header">Tokens (Input vs Output)</div><div class="chart-wrap chart-h-md"><canvas id="c-daily-tokens"></canvas></div></div>
-            <div class="card span-6"><div class="card-header">Model Distribution</div><div class="chart-wrap chart-h-md"><canvas id="c-model-dist"></canvas></div></div>
+            <div class="card span-6"><div class="card-header">Tokens (Input vs Output) ${tip(TIPS.tokensIO)}</div><div class="chart-wrap chart-h-md"><canvas id="c-daily-tokens"></canvas></div></div>
+            <div class="card span-6"><div class="card-header">Model Distribution ${tip(TIPS.modelDist)}</div><div class="chart-wrap chart-h-md"><canvas id="c-model-dist"></canvas></div></div>
         </div>
         <div class="bento">
-            <div class="card span-4"><div class="card-header">Cache Read / Write</div><div class="chart-wrap chart-h-sm"><canvas id="c-cache"></canvas></div></div>
-            <div class="card span-4"><div class="card-header">Messages Per Day</div><div class="chart-wrap chart-h-sm"><canvas id="c-msgs-day"></canvas></div></div>
-            <div class="card span-4"><div class="card-header">Cost Per Model</div><div class="chart-wrap chart-h-sm"><canvas id="c-model-cost"></canvas></div></div>
+            <div class="card span-4"><div class="card-header">Cache Read / Write ${tip(TIPS.cache)}</div><div class="chart-wrap chart-h-sm"><canvas id="c-cache"></canvas></div></div>
+            <div class="card span-4"><div class="card-header">Messages Per Day ${tip(TIPS.msgsDay)}</div><div class="chart-wrap chart-h-sm"><canvas id="c-msgs-day"></canvas></div></div>
+            <div class="card span-4"><div class="card-header">Cost Per Model ${tip(TIPS.costModel)}</div><div class="chart-wrap chart-h-sm"><canvas id="c-model-cost"></canvas></div></div>
         </div>
         <div class="bento">
-            <div class="card span-12"><div class="card-header">Daily Tokens by Project</div><div class="chart-wrap" style="height:${Math.max(240,data.projects.length*14)}px"><canvas id="c-proj-daily"></canvas></div></div>
+            <div class="card span-12"><div class="card-header">Daily Tokens by Project ${tip(TIPS.projDaily)}</div><div class="chart-wrap" style="height:${Math.max(240,data.projects.length*14)}px"><canvas id="c-proj-daily"></canvas></div></div>
         </div>
         <div class="bento">
-            <div class="card span-12"><div class="card-header">Cumulative Value</div><div class="chart-wrap chart-h-md"><canvas id="c-cumulative"></canvas></div></div>
+            <div class="card span-12"><div class="card-header">Cumulative Value ${tip(TIPS.cumulative)}</div><div class="chart-wrap chart-h-md"><canvas id="c-cumulative"></canvas></div></div>
         </div>
         <div class="bento">
-            <div class="card span-12"><div class="card-header">Project Breakdown</div>
+            <div class="card span-12"><div class="card-header">Project Breakdown ${tip(TIPS.projTable)}</div>
                 <div style="overflow-x:auto"><table><thead><tr>
                     <th>Project</th><th class="text-right">API Value</th><th class="text-right">Msgs</th><th class="text-right">Sessions</th>
                     <th class="text-right">Input</th><th class="text-right">Output</th><th class="text-right">Cache R</th><th class="text-right">Cache W</th>
@@ -421,13 +529,38 @@ function renderOverview(data){
             </div>
         </div>
         <div class="bento">
-            <div class="card span-12"><div class="card-header">Model Breakdown</div>
+            <div class="card span-12"><div class="card-header">Model Breakdown ${tip(TIPS.modelTable)}</div>
                 <div style="overflow-x:auto"><table><thead><tr>
                     <th>Model</th><th class="text-right">Messages</th><th class="text-right">Input</th><th class="text-right">Output</th>
                     <th class="text-right">Cache R</th><th class="text-right">Cache W</th><th class="text-right">Value</th><th class="text-right">Share</th>
                 </tr></thead><tbody id="model-tbody"></tbody></table></div>
             </div>
         </div>`;
+
+    // Heatmap
+    fetch('/api/heatmap?'+new URLSearchParams(dateFilter)).then(r=>r.json()).then(hm=>{
+      if(!hm||!hm.length)return;
+      const maxCount=Math.max(1,...hm.map(h=>h.messages));
+      const grid={};hm.forEach(h=>{grid[h.day_of_week+'_'+h.hour]=h.messages;});
+      const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      let cells='';
+      for(let d=0;d<7;d++){
+        cells+=`<div class="heatmap-label">${dayNames[d]}</div>`;
+        for(let h=0;h<24;h++){
+          const c=grid[d+'_'+h]||0;
+          const op=c>0?Math.max(0.1,c/maxCount):0.02;
+          cells+=`<div class="heatmap-cell" style="background:rgba(79,143,247,${op.toFixed(2)})" title="${dayNames[d]} ${h}:00 — ${c} msgs"></div>`;
+        }
+      }
+      let hourLabels='<div></div>';
+      for(let h=0;h<24;h++)hourLabels+=`<div style="text-align:center;font-size:8px;color:var(--text-3)">${h%2===0?h:''}</div>`;
+      const hmCard=document.createElement('div');
+      hmCard.className='card';hmCard.style.marginBottom='16px';
+      hmCard.innerHTML=`<div class="card-header">Activity Heatmap ${tip(TIPS.heatmap)}</div><div class="heatmap-hours">${hourLabels}</div><div class="heatmap-grid">${cells}</div>`;
+      const statRow=app.querySelector('.stat-row');
+      const afterEl=statRow?.nextElementSibling?.classList?.contains('card')?statRow.nextElementSibling:statRow;
+      if(afterEl)afterEl.after(hmCard);
+    }).catch(()=>{});
 
     const dl=data.dailyUsage,p=data.projects,mu=data.modelUsage;
     const dates=dl.map(d=>fmtDate(d.date));
@@ -490,21 +623,76 @@ async function renderSessions(){
     const allS=gantt.map(s=>new Date(s.first_timestamp).getTime()),allE=gantt.map(s=>new Date(s.last_timestamp).getTime());
     const rMin=Math.min(...allS)||0,rMax=Math.max(...allE)||1,range=rMax-rMin||1,minBar=range*.015;
 
+    // Feature 16: Bookmarked Sessions
+    let bookmarksHtml='';
+    try{
+        const bookmarks=await(await fetch('/api/bookmarks')).json();
+        if(bookmarks&&bookmarks.length){
+            bookmarksHtml=`<div class="card" style="margin-bottom:16px"><div class="card-header">Bookmarked Sessions (${bookmarks.length})</div>
+                <table><thead><tr><th>Project</th><th>Label</th><th>Note</th><th class="text-right">Date</th><th></th></tr></thead>
+                <tbody>${bookmarks.map(b=>`<tr onclick="showSession('${escAttr(b.session_id)}')" style="cursor:pointer">
+                    <td class="project-name">${escHtml(b.project_name||'Unknown')}</td>
+                    <td class="mono" style="font-size:10px">${escHtml(b.label||b.session_id.slice(0,12))}</td>
+                    <td style="color:var(--text-2);font-size:11px">${escHtml(b.note||'')}</td>
+                    <td class="text-right mono" style="font-size:10px">${fmtDateTime(b.created_at)}</td>
+                    <td><button class="btn" onclick="event.stopPropagation();removeBookmark('${escAttr(b.session_id)}')" style="font-size:10px;padding:2px 6px">Remove</button></td>
+                </tr>`).join('')}</tbody></table></div>`;
+        }
+    }catch(e){/* bookmarks API may not exist yet */}
+
+    // Feature 10: Session Clustering
+    let clusterHtml='';
+    try{
+        const clusterData=await(await fetch('/api/clusters')).json();
+        const clusters=clusterData.clusters||clusterData;
+        if(clusters&&clusters.length){
+            const clusterColors={'bug-fixing':COLORS.red,'exploration':COLORS.cyan,'greenfield':COLORS.green,'refactoring':COLORS.orange,'testing':COLORS.purple,'documentation':COLORS.indigo,'maintenance':COLORS.pink,'review':COLORS.lime,'other':COLORS.blue};
+            clusterHtml=`<div class="bento" style="margin-bottom:16px">
+                <div class="card span-4"><div class="card-header">Session Types ${tip(TIPS.clusters)}</div><div class="chart-wrap chart-h-md"><canvas id="c-clusters"></canvas></div></div>
+                <div class="card span-8"><div class="card-header">Cluster Breakdown ${tip(TIPS.clusters)}</div>
+                    <table><thead><tr><th>Type</th><th class="text-right">Sessions</th><th class="text-right">Total Cost</th><th class="text-right">Avg Cost</th></tr></thead>
+                    <tbody>${clusters.map(c=>`<tr>
+                        <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${clusterColors[c.type]||COLORS.blue};margin-right:6px"></span>${escHtml(c.type)}</td>
+                        <td class="text-right mono">${c.sessions||0}</td>
+                        <td class="text-right mono">${fmtCost(c.totalCost||0)}</td>
+                        <td class="text-right mono">${fmtCost(c.avgCostPerSession||0)}</td>
+                    </tr>`).join('')}</tbody></table>
+                </div>
+            </div>`;
+        }
+    }catch(e){/* clusters API may not exist yet */}
+
     app.innerHTML=`
-        ${gantt.length?`<div class="card" style="margin-bottom:16px"><div class="card-header">Session Timeline</div><div class="chart-wrap" style="height:${Math.max(200,gantt.length*32+40)}px"><canvas id="c-gantt"></canvas></div></div>`:''}
+        ${bookmarksHtml}
+        ${clusterHtml}
+        ${gantt.length?`<div class="card" style="margin-bottom:16px"><div class="card-header">Session Timeline ${tip(TIPS.gantt)}</div><div class="chart-wrap" style="height:${Math.max(200,gantt.length*32+40)}px"><canvas id="c-gantt"></canvas></div></div>`:''}
         <div class="card"><div class="card-header">Sessions (${sessions.length})</div>
-        <div style="overflow-x:auto"><table><thead><tr><th>Project</th><th>Branch</th><th class="text-right">Msgs</th><th class="text-right">Value</th><th class="text-right">Started</th><th class="text-right">Last Active</th></tr></thead>
-        <tbody>${sessions.map(s=>`<tr onclick="showSession('${escAttr(s.id)}')">
+        <div style="overflow-x:auto"><table><thead><tr><th>Project</th><th>Branch</th><th class="text-right">Msgs</th><th class="text-right">Value</th><th class="text-right">Duration</th><th class="text-right">$/hr</th><th class="text-right">Started</th><th class="text-right">Last Active</th></tr></thead>
+        <tbody>${sessions.map(s=>{const cph=sessionCostPerHr(s);return`<tr onclick="showSession('${escAttr(s.id)}')">
             <td class="project-name">${escHtml(s.project_name)}</td><td class="mono" style="font-size:10px">${escHtml(s.git_branch||'-')}</td>
             <td class="text-right mono">${s.message_count}</td><td class="text-right mono">${fmtCost(s.total_cost)}</td>
+            <td class="text-right mono" style="font-size:10px">${fmtDuration(s)}</td>
+            <td class="text-right mono" style="font-size:10px">${cph!==null?fmtCost(cph):'-'}</td>
             <td class="text-right mono" style="font-size:10px">${fmtDateTime(s.first_timestamp)}</td>
             <td class="text-right mono" style="font-size:10px">${fmtDateTime(s.last_timestamp)}</td>
-        </tr>`).join('')}</tbody></table></div></div>`;
+        </tr>`;}).join('')}</tbody></table></div></div>`;
 
     if(gantt.length){
         const labels=gantt.map(s=>{const d=((new Date(s.last_timestamp)-new Date(s.first_timestamp))/6e4);return s.project_name+' ('+(d>=60?(d/60).toFixed(1)+'h':Math.round(d)+'m')+')';});
         const barData=gantt.map(s=>{const st=new Date(s.first_timestamp).getTime(),en=new Date(s.last_timestamp).getTime();return[st,Math.max(en,st+minBar)];});
         new Chart(el('c-gantt'),{type:'bar',data:{labels,datasets:[{data:barData,backgroundColor:gantt.map(s=>(pColors[s.project_name]||COLORS.blue)+'80'),borderColor:gantt.map(s=>pColors[s.project_name]||COLORS.blue),borderWidth:1,borderRadius:4,borderSkipped:false,barPercentage:.65,categoryPercentage:.8}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const s=gantt[c.dataIndex];const d=((new Date(s.last_timestamp)-new Date(s.first_timestamp))/6e4);return[fmtDateTime(s.first_timestamp)+' -> '+fmtDateTime(s.last_timestamp),'Msgs: '+s.message_count+' | '+fmtCost(s.total_cost)];}}}},scales:{x:{type:'linear',position:'top',min:rMin-range*.02,max:rMax+range*.02,ticks:{callback:v=>{const d=new Date(v);return fmtDate(d)+' '+d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});},maxTicksLimit:6},grid:{color:gridColor}},y:{grid:{display:false},ticks:{font:{size:10}}}}}});
+    }
+
+    // Feature 10: Cluster doughnut chart
+    if(document.getElementById('c-clusters')){
+        try{
+            const clusterData2=await(await fetch('/api/clusters')).json();
+            const clusters2=clusterData2.clusters||clusterData2;
+            if(clusters2&&clusters2.length){
+                const clusterColors2={'bug-fixing':COLORS.red,'exploration':COLORS.cyan,'greenfield':COLORS.green,'refactoring':COLORS.orange,'testing':COLORS.purple,'documentation':COLORS.indigo,'maintenance':COLORS.pink,'review':COLORS.lime,'other':COLORS.blue};
+                new Chart(el('c-clusters'),{type:'doughnut',data:{labels:clusters2.map(c=>c.type),datasets:[{data:clusters2.map(c=>c.sessions||0),backgroundColor:clusters2.map(c=>clusterColors2[c.type]||COLORS.blue),borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{font:{size:10},padding:6}}}}});
+            }
+        }catch(e){/* silent */}
     }
 }
 
@@ -512,17 +700,36 @@ async function showSession(id){
     const app=document.getElementById('sessions-app');
     app.innerHTML='<div class="loading"><div class="spinner"></div></div>';
     const det=await(await fetch('/api/sessions/'+id)).json();const s=det.session;
+    const eff=calcEfficiency(s);const effCol=gradeColor(eff.grade);
     app.innerHTML=`
-        <button class="btn" onclick="renderSessions()" style="margin-bottom:16px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Back</button>
-        <div class="hero-kpis" style="margin-bottom:16px">
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+            <button class="btn" onclick="renderSessions()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg> Back</button>
+            <button class="btn" onclick="bookmarkSession('${escAttr(id)}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg> Bookmark</button>
+        </div>
+        <div class="hero-kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
             <div class="hero-card"><div class="accent-line" style="background:var(--blue)"></div><div class="label">Project</div><div class="value" style="font-size:18px;color:var(--blue)">${escHtml(s.project_name)}</div><div class="sub">${escHtml(s.project_path||'')}</div></div>
             <div class="hero-card"><div class="accent-line" style="background:var(--purple)"></div><div class="label">Messages</div><div class="value" style="color:var(--purple)">${s.message_count}</div><div class="sub">${fmtCost(s.total_cost)} API value</div></div>
-            <div class="hero-card"><div class="accent-line" style="background:var(--orange)"></div><div class="label">Duration</div><div class="value" style="font-size:14px;color:var(--orange)">${fmtDateTime(s.first_timestamp)}<br>to ${fmtDateTime(s.last_timestamp)}</div></div>
+            <div class="hero-card"><div class="accent-line" style="background:var(--orange)"></div><div class="label">Duration</div><div class="value" style="font-size:14px;color:var(--orange)">${fmtDuration(s)}</div><div class="sub">${fmtDateTime(s.first_timestamp)} to ${fmtDateTime(s.last_timestamp)}</div></div>
+            <div class="hero-card"><div class="accent-line" style="background:${effCol}"></div><div class="label">Efficiency</div><div class="value"><span class="eff-badge" style="background:${effCol}22;color:${effCol}">${eff.grade}</span> <span style="font-size:16px;color:${effCol}">${eff.score}%</span></div><div class="sub">I/O ratio, cache, cost/msg</div></div>
         </div>
         ${det.subagents.length?`<div class="card" style="margin-bottom:16px"><div class="card-header">Subagents (${det.subagents.length})</div><table><thead><tr><th>Agent</th><th class="text-right">Msgs</th><th class="text-right">Value</th></tr></thead><tbody>${det.subagents.map(a=>`<tr><td class="mono">${escHtml(a.slug||a.agent_id)}</td><td class="text-right mono">${a.message_count}</td><td class="text-right mono">${fmtCost(a.total_cost)}</td></tr>`).join('')}</tbody></table></div>`:''}
         ${det.toolCalls.length?`<div class="card" style="margin-bottom:16px"><div class="card-header">Tools Used</div><table><thead><tr><th>Tool</th><th class="text-right">Calls</th></tr></thead><tbody>${det.toolCalls.map(t=>`<tr><td class="mono">${escHtml(t.tool_name)}</td><td class="text-right mono">${t.count}</td></tr>`).join('')}</tbody></table></div>`:''}
+        ${det.messages.some(m=>m.cost>0)?`<div class="card" style="margin-bottom:16px"><div class="card-header">Token Burn Timeline ${tip('Cost per message with cumulative total. Blue=your prompts, purple=Claude responses.')}</div><div class="chart-wrap chart-h-md"><canvas id="c-session-burn"></canvas></div></div>`:''}
         <div class="card"><div class="card-header">Messages (${det.messages.length})</div>
         <div class="msg-timeline">${det.messages.slice(0,500).map(m=>`<div class="msg-item ${m.type}"><div class="msg-meta">${m.type}${m.model?' / '+m.model:''}${m.cost?' / '+fmtCost(m.cost):''}${m.has_tool_use?' / tools':''}  ${fmtDateTime(m.timestamp)}${m.agent_slug?' / '+escHtml(m.agent_slug):''}</div>${m.content_preview?`<div class="msg-preview">${escHtml(m.content_preview)}</div>`:''}</div>`).join('')}${det.messages.length>500?`<div style="padding:12px;color:var(--text-3);font-size:12px">+ ${det.messages.length-500} more</div>`:''}</div></div>`;
+
+    // Feature 7: Token Burn Timeline chart
+    if(det.messages.some(m=>m.cost>0)){
+        const burnMsgs=det.messages.filter(m=>m.cost>0);
+        const burnLabels=burnMsgs.map((_,i)=>'#'+(i+1));
+        const burnCosts=burnMsgs.map(m=>m.cost||0);
+        const burnColors=burnMsgs.map(m=>m.type==='user'?COLORS.blue+'aa':COLORS.purple+'aa');
+        let cumCost=0;const cumLine=burnMsgs.map(m=>{cumCost+=(m.cost||0);return cumCost;});
+        new Chart(el('c-session-burn'),{type:'bar',data:{labels:burnLabels,datasets:[
+            {type:'bar',label:'Message Cost',data:burnCosts,backgroundColor:burnColors,borderRadius:2,order:2},
+            {type:'line',label:'Cumulative',data:cumLine,borderColor:COLORS.red,backgroundColor:COLORS.red+'10',fill:true,tension:.3,pointRadius:1,borderWidth:2,yAxisID:'y1',order:1}
+        ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:10}}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtCost(c.parsed.y)}}},scales:{y:{beginAtZero:true,position:'left',ticks:{callback:v=>'$'+v.toFixed(3)},grid:{color:gridColor}},y1:{beginAtZero:true,position:'right',ticks:{callback:v=>'$'+fmt(v)},grid:{display:false}},x:{grid:{display:false},ticks:{maxTicksLimit:20,font:{size:9}}}}}});
+    }
 }
 
 // ── TOOLS ────────────────────────────────────────
@@ -533,8 +740,8 @@ async function renderTools(){
     const[tools,subagents]=await Promise.all([fetch('/api/tools?'+params).then(r=>r.json()),fetch('/api/subagents?'+params).then(r=>r.json())]);
     app.innerHTML=`
         <div class="bento">
-            <div class="card span-6"><div class="card-header">Tool Usage</div><div class="chart-wrap chart-h-md"><canvas id="c-tools"></canvas></div></div>
-            <div class="card span-6"><div class="card-header">Top Tools</div><div class="chart-wrap chart-h-md"><canvas id="c-tools-bar"></canvas></div></div>
+            <div class="card span-6"><div class="card-header">Tool Usage ${tip(TIPS.toolUsage)}</div><div class="chart-wrap chart-h-md"><canvas id="c-tools"></canvas></div></div>
+            <div class="card span-6"><div class="card-header">Top Tools ${tip(TIPS.toolBar)}</div><div class="chart-wrap chart-h-md"><canvas id="c-tools-bar"></canvas></div></div>
         </div>
         <div class="bento">
             <div class="card span-6"><div class="card-header">All Tools (${tools.length})</div><div style="overflow-x:auto;max-height:400px;overflow-y:auto"><table><thead><tr><th>Tool</th><th class="text-right">Calls</th><th class="text-right">Sessions</th><th class="text-right">Projects</th></tr></thead><tbody>${tools.map(t=>`<tr><td class="mono">${escHtml(t.tool_name)}</td><td class="text-right mono">${fmt(t.count)}</td><td class="text-right mono">${t.sessions}</td><td class="text-right mono">${t.projects}</td></tr>`).join('')}</tbody></table></div></div>
@@ -543,6 +750,40 @@ async function renderTools(){
     const t10=tools.slice(0,10);
     new Chart(el('c-tools'),{type:'doughnut',data:{labels:t10.map(t=>t.tool_name),datasets:[{data:t10.map(t=>t.count),backgroundColor:PALETTE,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{font:{size:10}}}}}});
     new Chart(el('c-tools-bar'),{type:'bar',data:{labels:tools.slice(0,12).map(t=>t.tool_name),datasets:[{data:tools.slice(0,12).map(t=>t.count),backgroundColor:PALETTE,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:gridColor}},y:{grid:{display:false},ticks:{font:{size:10}}}}}});
+
+    // Feature 8: Tool Effectiveness Analysis
+    const totalSessions=tools.reduce((max,t)=>Math.max(max,t.sessions||0),1);
+    const totalCalls=tools.reduce((s,t)=>s+(t.count||0),0);
+    const toolsSorted=[...tools].sort((a,b)=>(b.sessions||0)-(a.sessions||0));
+    const toolPairs=[];
+    for(let i=0;i<Math.min(tools.length,10);i++){
+        for(let j=i+1;j<Math.min(tools.length,10);j++){
+            const shared=Math.min(tools[i].sessions||0,tools[j].sessions||0);
+            if(shared>1)toolPairs.push({pair:tools[i].tool_name+' + '+tools[j].tool_name,sessions:shared});
+        }
+    }
+    toolPairs.sort((a,b)=>b.sessions-a.sessions);
+
+    const effCard=document.createElement('div');effCard.className='bento';
+    effCard.innerHTML=`
+        <div class="card span-6"><div class="card-header">Tool Call Patterns ${tip('Most common tool combinations used together in sessions.')}</div>
+            <div style="display:flex;gap:16px;margin-bottom:12px;font-size:12px">
+                <div><span style="color:var(--blue);font-weight:600">${fmt(totalCalls)}</span> <span style="color:var(--text-3)">total calls</span></div>
+                <div><span style="color:var(--purple);font-weight:600">${tools.length}</span> <span style="color:var(--text-3)">unique tools</span></div>
+                <div><span style="color:var(--orange);font-weight:600">${(totalCalls/Math.max(totalSessions,1)).toFixed(1)}</span> <span style="color:var(--text-3)">calls/session avg</span></div>
+            </div>
+            <table><thead><tr><th>Common Tool Pair</th><th class="text-right">Shared Sessions</th></tr></thead>
+            <tbody>${toolPairs.slice(0,5).map(p=>`<tr><td class="mono" style="font-size:10px">${escHtml(p.pair)}</td><td class="text-right mono">${p.sessions}</td></tr>`).join('')}
+            ${toolPairs.length===0?'<tr><td colspan="2" style="color:var(--text-3)">Not enough data</td></tr>':''}</tbody></table>
+        </div>
+        <div class="card span-6"><div class="card-header">Tool Breadth ${tip('Tools ranked by how many sessions use them — shows which tools are most essential.')}</div>
+            <table><thead><tr><th>Tool</th><th class="text-right">Sessions</th><th class="text-right">Calls/Session</th><th class="text-right">Projects</th></tr></thead>
+            <tbody>${toolsSorted.slice(0,8).map(t=>`<tr><td class="mono">${escHtml(t.tool_name)}</td><td class="text-right mono">${t.sessions||0}</td><td class="text-right mono">${((t.count||0)/Math.max(t.sessions||1,1)).toFixed(1)}</td><td class="text-right mono">${t.projects||0}</td></tr>`).join('')}</tbody></table>
+        </div>`;
+    document.getElementById('tools-app').appendChild(effCard);
+
+    // Feature 15: Subagent Cost Tree
+    renderSubagentTree(document.getElementById('tools-app'));
 }
 
 // ── PROJECT DEEP DIVE ────────────────────────────
@@ -551,9 +792,18 @@ async function renderProjectPicker(){
     app.innerHTML='<div class="loading"><div class="spinner"></div></div>';
     const params=new URLSearchParams(dateFilter);
     const projects=await(await fetch('/api/projects?'+params)).json();
-    app.innerHTML=`<div class="card"><div class="card-header">Select a Project</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
-        ${projects.map(p=>`<div class="card" style="cursor:pointer;border:1px solid var(--border);transition:all var(--transition)" onclick="renderProjectDetail(${p.id})" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor='var(--border)'">
+    app.innerHTML=`<div class="card"><div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+            <span>Select a Project</span>
+            <button class="btn" id="btn-compare-toggle" onclick="toggleCompareMode()">Compare Projects</button>
+        </div>
+        <div id="compare-actions" style="display:none;margin-bottom:12px;padding:10px;background:var(--bg-1);border-radius:var(--radius);border:1px solid var(--blue)">
+            <span style="font-size:12px;color:var(--text-2)">Select 2 projects to compare, then click:</span>
+            <button class="btn btn-primary" onclick="compareSelectedProjects()" style="margin-left:8px">Compare</button>
+            <button class="btn" onclick="toggleCompareMode()" style="margin-left:4px">Cancel</button>
+        </div>
+        <div id="compare-result"></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px" id="project-grid">
+        ${projects.map(p=>`<div class="card project-card" data-project-id="${p.id}" style="cursor:pointer;border:1px solid var(--border);transition:all var(--transition)" onclick="handleProjectClick(event,${p.id})" onmouseover="this.style.borderColor='var(--blue)'" onmouseout="this.style.borderColor=this.classList.contains('compare-selected')?'var(--purple)':'var(--border)'">
             <div style="font-size:14px;font-weight:600;color:var(--blue);margin-bottom:6px">${escHtml(p.name)}</div>
             <div style="font-size:11px;color:var(--text-3);margin-bottom:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(p.full_path)}</div>
             <div style="display:flex;gap:16px;font-size:12px">
@@ -563,6 +813,73 @@ async function renderProjectPicker(){
             </div>
         </div>`).join('')}
         </div></div>`;
+}
+
+// Feature 14: Project Comparison
+let compareMode=false;
+let compareSelected=[];
+function toggleCompareMode(){
+    compareMode=!compareMode;
+    compareSelected=[];
+    const actions=document.getElementById('compare-actions');
+    const result=document.getElementById('compare-result');
+    if(actions)actions.style.display=compareMode?'block':'none';
+    if(result)result.innerHTML='';
+    document.querySelectorAll('.project-card').forEach(c=>{c.classList.remove('compare-selected');c.style.borderColor='var(--border)';});
+}
+function handleProjectClick(e,projectId){
+    if(!compareMode){renderProjectDetail(projectId);return;}
+    const card=e.currentTarget;
+    if(card.classList.contains('compare-selected')){
+        card.classList.remove('compare-selected');card.style.borderColor='var(--border)';
+        compareSelected=compareSelected.filter(id=>id!==projectId);
+    }else{
+        if(compareSelected.length>=2)return;
+        card.classList.add('compare-selected');card.style.borderColor='var(--purple)';
+        compareSelected.push(projectId);
+    }
+}
+async function compareSelectedProjects(){
+    if(compareSelected.length!==2){showToast('Select exactly 2 projects');return;}
+    const params=new URLSearchParams(dateFilter);
+    const[d1,d2]=await Promise.all([
+        fetch('/api/project/'+compareSelected[0]+'?'+params).then(r=>r.json()),
+        fetch('/api/project/'+compareSelected[1]+'?'+params).then(r=>r.json())
+    ]);
+    const p1=d1.project,p2=d2.project;
+    const result=document.getElementById('compare-result');
+    result.innerHTML=`
+        <div class="bento" style="margin-bottom:16px">
+            <div class="card span-6" style="border-top:3px solid var(--blue)">
+                <div style="font-size:16px;font-weight:700;color:var(--blue);margin-bottom:10px">${escHtml(p1.name)}</div>
+                <div class="stat-row" style="flex-wrap:wrap">
+                    <div class="stat-item"><div class="s-val" style="color:var(--green)">${fmtCost(p1.total_cost||0)}</div><div class="s-lbl">Cost</div></div>
+                    <div class="stat-item"><div class="s-val">${fmt(p1.total_messages||0)}</div><div class="s-lbl">Messages</div></div>
+                    <div class="stat-item"><div class="s-val">${d1.stats.totalSessions}</div><div class="s-lbl">Sessions</div></div>
+                    <div class="stat-item"><div class="s-val" style="color:var(--cyan)">${d1.stats.cacheHitRate}%</div><div class="s-lbl">Cache Rate</div></div>
+                </div>
+            </div>
+            <div class="card span-6" style="border-top:3px solid var(--purple)">
+                <div style="font-size:16px;font-weight:700;color:var(--purple);margin-bottom:10px">${escHtml(p2.name)}</div>
+                <div class="stat-row" style="flex-wrap:wrap">
+                    <div class="stat-item"><div class="s-val" style="color:var(--green)">${fmtCost(p2.total_cost||0)}</div><div class="s-lbl">Cost</div></div>
+                    <div class="stat-item"><div class="s-val">${fmt(p2.total_messages||0)}</div><div class="s-lbl">Messages</div></div>
+                    <div class="stat-item"><div class="s-val">${d2.stats.totalSessions}</div><div class="s-lbl">Sessions</div></div>
+                    <div class="stat-item"><div class="s-val" style="color:var(--cyan)">${d2.stats.cacheHitRate}%</div><div class="s-lbl">Cache Rate</div></div>
+                </div>
+            </div>
+        </div>
+        <div class="card" style="margin-bottom:16px"><div class="card-header">Daily Cost Comparison</div><div class="chart-wrap chart-h-md"><canvas id="c-compare-daily"></canvas></div></div>`;
+
+    // Overlaid daily cost chart
+    const allDates=[...new Set([...d1.dailyUsage.map(d=>d.date),...d2.dailyUsage.map(d=>d.date)])].sort();
+    const map1={};d1.dailyUsage.forEach(d=>map1[d.date]=d.cost);
+    const map2={};d2.dailyUsage.forEach(d=>map2[d.date]=d.cost);
+    new Chart(el('c-compare-daily'),{type:'line',data:{labels:allDates.map(fmtDate),datasets:[
+        {label:p1.name,data:allDates.map(d=>map1[d]||0),borderColor:COLORS.blue,backgroundColor:COLORS.blue+'15',fill:true,tension:.3,pointRadius:1.5,borderWidth:2},
+        {label:p2.name,data:allDates.map(d=>map2[d]||0),borderColor:COLORS.purple,backgroundColor:COLORS.purple+'15',fill:true,tension:.3,pointRadius:1.5,borderWidth:2}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:10}}}},scales:{y:{beginAtZero:true,ticks:{callback:v=>'$'+fmt(v)},grid:{color:gridColor}},x:{grid:{display:false}}}}});
+    toggleCompareMode();
 }
 
 async function renderProjectDetail(projectId){
@@ -611,7 +928,7 @@ async function renderProjectDetail(projectId){
         </div>
 
         <div class="bento">
-            <div class="card span-6"><div class="card-header">Tool Usage</div><div class="chart-wrap chart-h-md"><canvas id="c-pd-tools"></canvas></div></div>
+            <div class="card span-6"><div class="card-header">Tool Usage ${tip(TIPS.toolUsage)}</div><div class="chart-wrap chart-h-md"><canvas id="c-pd-tools"></canvas></div></div>
             <div class="card span-6"><div class="card-header">Daily Messages</div><div class="chart-wrap chart-h-md"><canvas id="c-pd-msgs"></canvas></div></div>
         </div>
 
@@ -693,20 +1010,36 @@ async function renderGit(){
             <div class="hero-card"><div class="accent-line" style="background:var(--orange)"></div><div class="label">$/Line</div><div class="value" style="color:var(--orange)">${fmtCost(summary.costPerLine)}</div><div class="sub">per changed line</div></div>
         </div>
         <div class="bento">
-            <div class="card span-6"><div class="card-header">Cost by Project</div><div class="chart-wrap chart-h-md"><canvas id="c-git-proj"></canvas></div></div>
-            <div class="card span-6"><div class="card-header">Commit Timeline</div><div class="chart-wrap chart-h-md"><canvas id="c-git-tl"></canvas></div></div>
+            <div class="card span-6"><div class="card-header">Cost by Project ${tip(TIPS.gitProj)}</div><div class="chart-wrap chart-h-md"><canvas id="c-git-proj"></canvas></div></div>
+            <div class="card span-6"><div class="card-header">Commit Timeline ${tip(TIPS.gitTimeline)}</div><div class="chart-wrap chart-h-md"><canvas id="c-git-tl"></canvas></div></div>
         </div>
         <div class="bento">
-            <div class="card span-6"><div class="card-header">By Project</div><div style="overflow-x:auto"><table><thead><tr><th>Project</th><th class="text-right">Commits</th><th class="text-right">Value</th><th class="text-right">+Lines</th><th class="text-right">-Lines</th><th class="text-right">$/Commit</th></tr></thead><tbody>${projects.map(p=>`<tr><td class="project-name">${escHtml(p.project_name)}</td><td class="text-right mono">${p.commits}</td><td class="text-right mono">${fmtCost(p.total_cost)}</td><td class="text-right mono lines-add">+${fmt(p.insertions||0)}</td><td class="text-right mono lines-del">-${fmt(p.deletions||0)}</td><td class="text-right mono">${fmtCost((p.total_cost||0)/Math.max(p.linked_commits||1,1))}</td></tr>`).join('')}</tbody></table></div></div>
+            <div class="card span-6"><div class="card-header">By Project ${tip(TIPS.byProject)}</div><div style="overflow-x:auto"><table><thead><tr><th>Project</th><th class="text-right">Commits</th><th class="text-right">Value</th><th class="text-right">+Lines</th><th class="text-right">-Lines</th><th class="text-right">$/Commit</th></tr></thead><tbody>${projects.map(p=>`<tr><td class="project-name">${escHtml(p.project_name)}</td><td class="text-right mono">${p.commits}</td><td class="text-right mono">${fmtCost(p.total_cost)}</td><td class="text-right mono lines-add">+${fmt(p.insertions||0)}</td><td class="text-right mono lines-del">-${fmt(p.deletions||0)}</td><td class="text-right mono">${fmtCost((p.total_cost||0)/Math.max(p.linked_commits||1,1))}</td></tr>`).join('')}</tbody></table></div></div>
             <div class="card span-6"><div class="card-header">By Branch</div><div style="overflow-x:auto"><table><thead><tr><th>Branch</th><th>Project</th><th class="text-right">Commits</th><th class="text-right">Value</th></tr></thead><tbody>${branches.slice(0,15).map(b=>`<tr><td><span class="branch-badge">${escHtml(b.branch)}</span></td><td class="project-name">${escHtml(b.project_name)}</td><td class="text-right mono">${b.commits}</td><td class="text-right mono">${fmtCost(b.total_cost)}</td></tr>`).join('')}</tbody></table></div></div>
         </div>
         <div class="bento">
-            <div class="card span-12"><div class="card-header">Most Expensive Commits</div><div style="overflow-x:auto"><table><thead><tr><th>Hash</th><th>Project</th><th>Message</th><th>Branch</th><th class="text-right">Value</th><th class="text-right">+/-</th><th class="text-right">Date</th></tr></thead><tbody>${expensive.map(c=>`<tr><td class="commit-hash">${c.hash.slice(0,8)}</td><td class="project-name">${escHtml(c.project_name)}</td><td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escAttr(c.message)}">${escHtml(c.message.slice(0,55))}</td><td><span class="branch-badge">${escHtml(c.branch)}</span></td><td class="text-right mono">${fmtCost(c.estimated_cost)}</td><td class="text-right mono"><span class="lines-add">+${c.insertions}</span> <span class="lines-del">-${c.deletions}</span></td><td class="text-right mono" style="font-size:10px">${fmtDate(c.date)}</td></tr>`).join('')}</tbody></table></div></div>
-        </div>`;
+            <div class="card span-12"><div class="card-header">Most Expensive Commits ${tip(TIPS.gitExpensive)}</div><div style="overflow-x:auto"><table><thead><tr><th>Hash</th><th>Project</th><th>Message</th><th>Branch</th><th class="text-right">Value</th><th class="text-right">+/-</th><th class="text-right">Date</th></tr></thead><tbody>${expensive.map(c=>`<tr><td class="commit-hash">${c.hash.slice(0,8)}</td><td class="project-name">${escHtml(c.project_name)}</td><td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escAttr(c.message)}">${escHtml(c.message.slice(0,55))}</td><td><span class="branch-badge">${escHtml(c.branch)}</span></td><td class="text-right mono">${fmtCost(c.estimated_cost)}</td><td class="text-right mono"><span class="lines-add">+${c.insertions}</span> <span class="lines-del">-${c.deletions}</span></td><td class="text-right mono" style="font-size:10px">${fmtDate(c.date)}</td></tr>`).join('')}</tbody></table></div></div>
+        </div>
+        <div class="bento" id="git-cpl-row"></div>`;
     new Chart(el('c-git-proj'),{type:'bar',data:{labels:projects.map(p=>p.project_name),datasets:[{data:projects.map(p=>p.total_cost||0),backgroundColor:PALETTE.map(c=>c+'88'),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{callback:v=>'$'+fmt(v)},grid:{color:gridColor}},y:{grid:{display:false},ticks:{font:{size:10}}}}}});
     const tlD=[...new Set(timeline.map(t=>t.date.slice(0,10)))].sort(),tlP=[...new Set(timeline.map(t=>t.project_name))].slice(0,6);
     const tlDS=tlP.map((n,i)=>{const m={};timeline.filter(t=>t.project_name===n).forEach(t=>m[t.date.slice(0,10)]=(m[t.date.slice(0,10)]||0)+t.cost);return{label:n,data:tlD.map(d=>m[d]||0),backgroundColor:PALETTE[i]+'80',stack:'s'};});
     new Chart(el('c-git-tl'),{type:'bar',data:{labels:tlD.map(fmtDate),datasets:tlDS},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{font:{size:10}}}},scales:{y:{stacked:true,beginAtZero:true,ticks:{callback:v=>'$'+fmt(v)},grid:{color:gridColor}},x:{stacked:true,grid:{display:false}}}}});
+
+    // Cost per Line charts
+    fetch('/api/git/cost-per-line?'+params).then(r=>r.json()).then(cpl=>{
+      if(!cpl||!cpl.byProject||!cpl.byProject.length)return;
+      const row=document.getElementById('git-cpl-row');
+      row.innerHTML=`
+        <div class="card span-6"><div class="card-header">Cost per Line by Project ${tip(TIPS.costPerLine)}</div><div class="chart-wrap chart-h-md"><canvas id="c-git-cpl-proj"></canvas></div></div>
+        <div class="card span-6"><div class="card-header">Cost per Line Trend ${tip(TIPS.cplTrend)}</div><div class="chart-wrap chart-h-md"><canvas id="c-git-cpl-trend"></canvas></div></div>`;
+      const bp=cpl.byProject.slice(0,12);
+      new Chart(el('c-git-cpl-proj'),{type:'bar',data:{labels:bp.map(p=>p.project_name),datasets:[{data:bp.map(p=>p.cost_per_line||0),backgroundColor:PALETTE.map(c=>c+'88'),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'$'+c.parsed.x.toFixed(4)+'/line'}}},scales:{x:{beginAtZero:true,ticks:{callback:v=>'$'+v.toFixed(3)},grid:{color:gridColor}},y:{grid:{display:false},ticks:{font:{size:10}}}}}});
+      if(cpl.trend&&cpl.trend.length){
+        const tDates=cpl.trend.map(t=>fmtDate(t.date));
+        new Chart(el('c-git-cpl-trend'),{type:'line',data:{labels:tDates,datasets:[{data:cpl.trend.map(t=>t.cost_per_line||0),borderColor:COLORS.orange,backgroundColor:COLORS.orange+'15',fill:true,tension:.4,pointRadius:1.5,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'$'+c.parsed.y.toFixed(4)+'/line'}}},scales:{y:{beginAtZero:true,ticks:{callback:v=>'$'+v.toFixed(3)},grid:{color:gridColor}},x:{grid:{display:false}}}}});
+      }
+    }).catch(()=>{});
 }
 
 // ── INSIGHTS ─────────────────────────────────────
@@ -716,6 +1049,25 @@ async function renderInsights(){
     const insights=await(await fetch('/api/insights')).json();
     if(!insights.length){app.innerHTML='<div class="card" style="padding:48px;text-align:center;color:var(--text-3)">No insights yet. Keep using Claude Code!</div>';return;}
     app.innerHTML=`<div class="card"><div class="card-header">Insights (${insights.length})</div>${insights.map(i=>`<div class="insight ${i.severity}"><div class="insight-title">${escHtml(i.title)}</div><div class="insight-detail">${escHtml(i.detail)}</div></div>`).join('')}</div>`;
+
+    // Feature 9: Model Recommendations
+    try{
+        const recs=await(await fetch('/api/recommendations')).json();
+        if(recs&&(recs.totalSavings>0||recs.recommendations&&recs.recommendations.length)){
+            let recHtml=`<div class="card" style="margin-top:16px"><div class="card-header">Model Optimization ${tip('Sessions that could use a cheaper model without sacrificing quality.')}</div>
+                <div class="insight info"><div class="insight-title">Potential Savings: ${fmtCost(recs.totalSavings||0)}</div>
+                <div class="insight-detail">${recs.summary?escHtml(recs.summary):'Based on your usage patterns, some sessions could use cheaper models.'}</div></div>`;
+            if(recs.recommendations&&recs.recommendations.length){
+                recHtml+=`<table style="margin-top:12px"><thead><tr><th>Session / Project</th><th>Current Model</th><th>Suggested</th><th class="text-right">Potential Savings</th></tr></thead><tbody>`;
+                recs.recommendations.slice(0,5).forEach(r=>{
+                    recHtml+=`<tr><td class="project-name">${escHtml(r.project_name||r.session_id||'')}</td><td class="mono" style="font-size:10px">${escHtml((r.current_model||'').replace('claude-',''))}</td><td class="mono" style="font-size:10px;color:var(--green)">${escHtml((r.suggested_model||'').replace('claude-',''))}</td><td class="text-right mono">${fmtCost(r.savings||0)}</td></tr>`;
+                });
+                recHtml+=`</tbody></table>`;
+            }
+            recHtml+='</div>';
+            app.insertAdjacentHTML('beforeend',recHtml);
+        }
+    }catch(e){/* recommendations API may not exist yet */}
 }
 
 // ── LIVE — CITY SKYLINE ─────────────────────────
@@ -777,6 +1129,16 @@ async function fetchLiveData(){
     live.stats.rate=delta>0?Math.floor(delta/dt):live.stats.rate;
     live.rateHist[live.rateIdx%200]=live.stats.rate;live.rateIdx++;
 
+    // Seed sparkline with historical daily data on first load
+    if(!prev&&data.dailyUsage&&data.dailyUsage.length>0){
+      const daily=data.dailyUsage.slice(-30);
+      daily.forEach((d,i)=>{
+        const tokens=(d.inputTokens||0)+(d.outputTokens||0);
+        live.rateHist[i%200]=Math.floor(tokens/300);// approximate tok/sec over a day
+      });
+      live.rateIdx=Math.max(live.rateIdx,daily.length);
+    }
+
     live.stats.totalTokens=s.totalTokens||0;
     live.stats.cost=s.apiEquivalentCost||0;
     live.stats.msgs=s.totalMessages||0;
@@ -799,28 +1161,26 @@ async function fetchLiveData(){
       live.stats.billingLabel='no plan';
     }
 
-    // Gauge 2: 5-hour billing window — from /api/live real data
+    // 5-hour billing window — use real rate limit data from statusline hook
     const bw=liveData.billingWindow;
-    if(bw&&bw.msgs>0){
-      // Output tokens are the primary rate-limit factor
-      // Approximate cap based on plan: Max $100 ~= 1.5M output tok/5h, Max $200 ~= 3M
-      const rate=sub.monthlyRate||100;
-      const outputCap=rate<=20?500000:rate<=100?1500000:3000000;
-      // We don't have output-only from the API, so estimate from fresh tokens
-      // Fresh tokens = input + output, output is typically ~60-80% of fresh
-      const estimatedOutput=bw.freshTokens*0.7;
-      live.stats.window5hPct=Math.min(100,estimatedOutput/outputCap*100);
-      live.stats.window5hRemain=bw.msgs+' msgs / '+fmtTokens(bw.freshTokens);
-      if(bw.resetTime){
-        const rt=new Date(bw.resetTime);
-        live.stats.window5hRestart='resets '+rt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
-      }else{
-        live.stats.window5hRestart='';
-      }
+    const rl=liveData.rateLimits;
+    if(rl&&rl.usedPct!=null){
+      // Real data from Claude's statusline
+      live.stats.window5hPct=Math.round(rl.usedPct);
+      live.stats.window5hRemain=(bw?bw.msgs+' msgs':'');
+      if(rl.resetsAt){
+        const rt=new Date(rl.resetsAt*1000);
+        live.stats.window5hResetLabel='resets '+rt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+      }else{live.stats.window5hResetLabel='';}
+    }else if(bw&&bw.msgs>0){
+      // No statusline data — show msgs only, no fake %
+      live.stats.window5hPct=0;
+      live.stats.window5hRemain=bw.msgs+' msgs';
+      live.stats.window5hResetLabel='setup statusline for %';
     }else{
       live.stats.window5hPct=0;
       live.stats.window5hRemain='idle';
-      live.stats.window5hRestart='';
+      live.stats.window5hResetLabel='';
     }
 
     // Buildings: scale heights proportionally — tallest = most cost
@@ -1003,11 +1363,18 @@ function drawCitySkyline(){
   drawLiveGauge(ctx,g1x,g1y,g1r,live.stats.billingPct,live.gaugeAnim,
     'BILLING',live.stats.billingLabel);
 
-  // ── Gauge 2: 5-Hour Window (below) ──
+  // ── Gauge 2: 5-Hour Window (below billing gauge) ──
   const g2x=w-90,g2y=g1y+g1r*2+56,g2r=42;
   live.gauge5hAnim+=(live.stats.window5hPct/100-live.gauge5hAnim)*0.06;
   drawLiveGauge(ctx,g2x,g2y,g2r,live.stats.window5hPct,live.gauge5hAnim,
-    '5H WINDOW',live.stats.window5hRemain,live.stats.window5hRestart);
+    '5H WINDOW',live.stats.window5hRemain);
+  // Reset hour — big and prominent below the gauge
+  if(live.stats.window5hResetLabel){
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillStyle='#f59e0b';ctx.font='bold 14px Fira Code';
+    ctx.fillText(live.stats.window5hResetLabel,g2x,g2y+g2r+62);
+    ctx.textAlign='start';ctx.textBaseline='alphabetic';
+  }
 
   // ── Stats Bar (bottom) ──
   const barH=48,barY=h-barH;
@@ -1015,12 +1382,12 @@ function drawCitySkyline(){
   ctx.fillStyle='#262a3a';ctx.fillRect(0,barY,w,1);
 
   const statItems=[
-    {label:'TOK/SEC',value:fn(live.stats.rate),color:'#f59e0b'},
+    {label:'TOK/SEC',value:fmt(live.stats.rate),color:'#f59e0b'},
     {label:'TOKENS',value:fmtTokens(live.stats.totalTokens),color:'#4f8ff7'},
     {label:'COST',value:fmtCost(live.stats.cost),color:'#22c55e'},
     {label:'CACHE',value:live.stats.cacheRate.toFixed(0)+'%',color:'#06b6d4'},
     {label:'MODEL',value:(live.stats.model||'').replace('claude-','').slice(0,12),color:'#a855f7'},
-    {label:'MSGS',value:fn(live.stats.msgs),color:'#ec4899'},
+    {label:'MSGS',value:fmt(live.stats.msgs),color:'#ec4899'},
     {label:'INPUT',value:fmtTokens(live.stats.input),color:'#4f8ff7'},
     {label:'OUTPUT',value:fmtTokens(live.stats.output),color:'#a855f7'},
   ];
@@ -1036,7 +1403,7 @@ function drawCitySkyline(){
   // ── Sparkline (top-left) ──
   ctx.fillStyle='#0f1117aa';ctx.fillRect(12,12,180,52);
   ctx.fillStyle='#50546a';ctx.font='8px Fira Code';ctx.fillText('TOKEN RATE',20,26);
-  ctx.fillStyle='#f59e0b';ctx.font='bold 12px Fira Code';ctx.fillText(fn(live.stats.rate)+'/s',100,26);
+  ctx.fillStyle='#f59e0b';ctx.font='bold 12px Fira Code';ctx.fillText(fmt(live.stats.rate)+'/s',100,26);
   ctx.beginPath();ctx.strokeStyle='#f59e0b88';ctx.lineWidth=1.5;
   const spLen=Math.min(live.rateIdx,200);
   const spMax=Math.max(1,...Array.from(live.rateHist));
@@ -1072,9 +1439,173 @@ connectWS();
 async function generateReport(){
     if(!currentData)return;const s=currentData.summary,sub=currentData.subscription||{},apiVal=s.apiEquivalentCost||0,roi=sub.actualCost>0?(apiVal/sub.actualCost).toFixed(1):'N/A',p=currentData.projects||[];
     let gitHtml='';try{const gs=await(await fetch('/api/git/summary')).json();const ge=await(await fetch('/api/git/expensive?limit=10')).json();if(gs.totalCommits>0)gitHtml=`<div class="sec"><h2>Git Cost Analysis</h2><div class="krow"><div class="k"><div class="kv">${gs.totalCommits}</div><div class="kl">Commits</div></div><div class="k"><div class="kv">${gs.linkedCommits}</div><div class="kl">Linked</div></div><div class="k"><div class="kv">$${gs.avgCostPerCommit.toFixed(2)}</div><div class="kl">$/Commit</div></div><div class="k"><div class="kv">$${gs.costPerLine.toFixed(4)}</div><div class="kl">$/Line</div></div></div><table><tr><th>Cost</th><th>Project</th><th>Hash</th><th>Message</th></tr>${ge.map(c=>`<tr><td>$${c.estimated_cost.toFixed(2)}</td><td>${c.project_name}</td><td style="font-family:monospace">${c.hash.slice(0,8)}</td><td>${c.message.slice(0,50)}</td></tr>`).join('')}</table></div>`;}catch{}
-    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Claude Radar Report</title><style>body{font-family:'Fira Sans',-apple-system,sans-serif;max-width:860px;margin:0 auto;padding:40px;color:#111;background:#fff}h1{font-size:26px;margin-bottom:2px}.sub{color:#666;margin-bottom:32px;font-size:13px}.sec{margin-bottom:28px}h2{font-size:16px;border-bottom:2px solid #e5e7eb;padding-bottom:6px;margin-bottom:14px}.krow{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:14px;margin-bottom:18px}.k{background:#f8f9fc;border-radius:8px;padding:14px;text-align:center}.k .kv{font-size:22px;font-weight:700;font-family:'Fira Code',monospace;color:#4f8ff7}.k .kl{font-size:10px;color:#888;margin-top:3px;text-transform:uppercase}table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;padding:7px;border-bottom:2px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#888}td{padding:7px;border-bottom:1px solid #f0f0f0}tr:hover td{background:#f8f9ff}.ft{margin-top:36px;font-size:10px;color:#bbb;text-align:center;border-top:1px solid #e5e7eb;padding-top:14px}</style></head><body><h1>Claude Radar Report</h1><div class="sub">Generated ${new Date().toLocaleString()} | ${sub.plan||'Unknown'} Plan</div><div class="sec"><h2>Summary</h2><div class="krow"><div class="k"><div class="kv">$${(sub.actualCost||0)}</div><div class="kl">Paid</div></div><div class="k"><div class="kv">$${apiVal.toFixed(2)}</div><div class="kl">API Value</div></div><div class="k"><div class="kv">${roi}x</div><div class="kl">ROI</div></div><div class="k"><div class="kv">${s.totalMessages.toLocaleString()}</div><div class="kl">Messages</div></div><div class="k"><div class="kv">${s.totalProjects}</div><div class="kl">Projects</div></div></div></div><div class="sec"><h2>Projects</h2><table><tr><th>Project</th><th style="text-align:right">Value</th><th style="text-align:right">Msgs</th><th style="text-align:right">Sessions</th><th style="text-align:right">Share</th></tr>${p.map(x=>`<tr><td><strong>${x.name}</strong></td><td style="text-align:right">$${x.totalCost.toFixed(2)}</td><td style="text-align:right">${x.totalMessages}</td><td style="text-align:right">${x.sessionCount}</td><td style="text-align:right">${(x.totalCost/apiVal*100).toFixed(1)}%</td></tr>`).join('')}</table></div>${gitHtml}<div class="ft">Claude Radar &middot; github.com/berenceylan/claude-radar</div></body></html>`;
+    let compHtml='';try{const comp=await(await fetch('/api/comparison?period=week')).json();if(comp&&comp.current){const cur=comp.current,prev=comp.previous;function delta(c,p){if(!p||p===0)return{pct:0,arrow:'',cls:''};const d=((c-p)/p*100);return{pct:Math.abs(d).toFixed(1),arrow:d>=0?'&#9650;':'&#9660;',cls:d>=0?'up':'down'};}const dCost=delta(cur.cost||0,prev.cost||0);const dMsgs=delta(cur.messages||0,prev.messages||0);const dSessions=delta(cur.sessions||0,prev.sessions||0);const dTokens=delta(cur.tokens||0,prev.tokens||0);compHtml=`<div class="sec"><h2>This Week vs Last Week</h2><div class="krow"><div class="k"><div class="kv">$${(cur.cost||0).toFixed(2)}</div><div class="kl">Cost <span style="color:${dCost.cls==='up'?'#ef4444':'#22c55e'}">${dCost.arrow} ${dCost.pct}%</span></div></div><div class="k"><div class="kv">${cur.messages||0}</div><div class="kl">Messages <span style="color:${dMsgs.cls==='up'?'#22c55e':'#ef4444'}">${dMsgs.arrow} ${dMsgs.pct}%</span></div></div><div class="k"><div class="kv">${cur.sessions||0}</div><div class="kl">Sessions <span style="color:${dSessions.cls==='up'?'#22c55e':'#ef4444'}">${dSessions.arrow} ${dSessions.pct}%</span></div></div><div class="k"><div class="kv">${fmtTokens(cur.tokens||0)}</div><div class="kl">Tokens <span style="color:${dTokens.cls==='up'?'#22c55e':'#ef4444'}">${dTokens.arrow} ${dTokens.pct}%</span></div></div></div></div>`;};}catch{}
+    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Claude Radar Report</title><style>body{font-family:'Fira Sans',-apple-system,sans-serif;max-width:860px;margin:0 auto;padding:40px;color:#111;background:#fff}h1{font-size:26px;margin-bottom:2px}.sub{color:#666;margin-bottom:32px;font-size:13px}.sec{margin-bottom:28px}h2{font-size:16px;border-bottom:2px solid #e5e7eb;padding-bottom:6px;margin-bottom:14px}.krow{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:14px;margin-bottom:18px}.k{background:#f8f9fc;border-radius:8px;padding:14px;text-align:center}.k .kv{font-size:22px;font-weight:700;font-family:'Fira Code',monospace;color:#4f8ff7}.k .kl{font-size:10px;color:#888;margin-top:3px;text-transform:uppercase}table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;padding:7px;border-bottom:2px solid #e5e7eb;font-size:10px;text-transform:uppercase;color:#888}td{padding:7px;border-bottom:1px solid #f0f0f0}tr:hover td{background:#f8f9ff}.ft{margin-top:36px;font-size:10px;color:#bbb;text-align:center;border-top:1px solid #e5e7eb;padding-top:14px}</style></head><body><h1>Claude Radar Report</h1><div class="sub">Generated ${new Date().toLocaleString()} | ${sub.plan||'Unknown'} Plan</div><div class="sec"><h2>Summary</h2><div class="krow"><div class="k"><div class="kv">$${(sub.actualCost||0)}</div><div class="kl">Paid</div></div><div class="k"><div class="kv">$${apiVal.toFixed(2)}</div><div class="kl">API Value</div></div><div class="k"><div class="kv">${roi}x</div><div class="kl">ROI</div></div><div class="k"><div class="kv">${s.totalMessages.toLocaleString()}</div><div class="kl">Messages</div></div><div class="k"><div class="kv">${s.totalProjects}</div><div class="kl">Projects</div></div></div></div><div class="sec"><h2>Projects</h2><table><tr><th>Project</th><th style="text-align:right">Value</th><th style="text-align:right">Msgs</th><th style="text-align:right">Sessions</th><th style="text-align:right">Share</th></tr>${p.map(x=>`<tr><td><strong>${x.name}</strong></td><td style="text-align:right">$${x.totalCost.toFixed(2)}</td><td style="text-align:right">${x.totalMessages}</td><td style="text-align:right">${x.sessionCount}</td><td style="text-align:right">${(x.totalCost/apiVal*100).toFixed(1)}%</td></tr>`).join('')}</table></div>${compHtml}${gitHtml}<div class="ft">Claude Radar &middot; github.com/berenceylan/claude-radar</div></body></html>`;
     const blob=new Blob([html],{type:'text/html'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='claude-radar-report.html';a.click();URL.revokeObjectURL(url);showToast('Report downloaded');
 }
+
+// ── FEATURE 7: Token Burn Timeline (in showSession) ──
+// (injected inline inside showSession — see showSession modification)
+
+// ── FEATURE 9: Model Recommendations (in renderInsights) ──
+// (injected inline inside renderInsights — see renderInsights modification)
+
+// ── FEATURE 10: Session Clustering (in renderSessions) ──
+// (injected inline inside renderSessions — see renderSessions modification)
+
+// ── FEATURE 12: Cost Simulator ──────────────────
+async function renderSimulator(){
+    const app=document.getElementById('simulator-app');
+    app.innerHTML='<div class="loading"><div class="spinner"></div>Loading simulator...</div>';
+    try{
+    const[data,pricingRes]=await Promise.all([loadData(),fetch('/api/pricing').then(r=>r.json()).catch(()=>null)]);
+    const mu=data.modelUsage||{};const models=Object.entries(mu).filter(([k])=>k!=='<synthetic>');
+    const totalCost=models.reduce((s,[,v])=>s+(v.cost||0),0);
+    const totalTokens=models.reduce((s,[,v])=>s+(v.inputTokens||0)+(v.outputTokens||0),0);
+    const s=data.summary;
+    const cacheRead=s.totalCacheRead||0;const totalIn=(s.totalInputTokens||0)+cacheRead;
+    const currentCacheRate=totalIn>0?(cacheRead/totalIn*100):0;
+
+    // Find the most expensive model and a cheaper alternative
+    const sorted=models.sort(([,a],[,b])=>(b.cost||0)-(a.cost||0));
+    const expensiveModel=sorted[0]?sorted[0][0]:'N/A';
+    const expensiveCost=sorted[0]?sorted[0][1].cost||0:0;
+    const cheapModel=sorted.length>1?sorted[sorted.length-1][0]:'N/A';
+    // Estimate savings ratio: cheaper model typically costs ~10-30% of expensive
+    const cheapRatio=sorted.length>1&&sorted[0][1].cost>0?(sorted[sorted.length-1][1].cost/Math.max(1,sorted[sorted.length-1][1].messages||1))/((sorted[0][1].cost)/Math.max(1,sorted[0][1].messages||1)):0.2;
+
+    app.innerHTML=`
+        <div class="card" style="margin-bottom:16px">
+            <div class="card-header">What-If Cost Simulator</div>
+            <p style="color:var(--text-2);font-size:12px;margin-bottom:18px">Drag the sliders to see how changes would affect your costs. Results update live.</p>
+            <div class="bento" style="margin-bottom:0">
+                <div class="card span-6">
+                    <div class="card-header">Model Mix Shift</div>
+                    <p style="font-size:11px;color:var(--text-3);margin-bottom:12px">What if <strong style="color:var(--orange)">${escHtml(expensiveModel.replace('claude-',''))}</strong> usage moved to <strong style="color:var(--green)">${escHtml(cheapModel.replace('claude-',''))}</strong>?</p>
+                    <div class="sim-slider-wrap">
+                        <label>Shift percentage: <strong id="sim-model-val">0</strong>%</label>
+                        <input type="range" id="sim-model-slider" min="0" max="100" value="0">
+                    </div>
+                    <div class="sim-result">
+                        <div class="sim-card"><div class="sv" style="color:var(--text-2)" id="sim-model-current">${fmtCost(totalCost)}</div><div class="sl">Current Cost</div></div>
+                        <div class="sim-card"><div class="sv" style="color:var(--green)" id="sim-model-projected">${fmtCost(totalCost)}</div><div class="sl">Projected Cost</div></div>
+                        <div class="sim-card"><div class="sv" style="color:var(--orange)" id="sim-model-savings">$0.00</div><div class="sl">Savings</div></div>
+                    </div>
+                </div>
+                <div class="card span-6">
+                    <div class="card-header">Cache Improvement</div>
+                    <p style="font-size:11px;color:var(--text-3);margin-bottom:12px">Current cache hit rate: <strong style="color:var(--cyan)">${currentCacheRate.toFixed(1)}%</strong></p>
+                    <div class="sim-slider-wrap">
+                        <label>Improve cache rate by: <strong id="sim-cache-val">0</strong>%</label>
+                        <input type="range" id="sim-cache-slider" min="0" max="${Math.floor(100-currentCacheRate)}" value="0">
+                    </div>
+                    <div class="sim-result">
+                        <div class="sim-card"><div class="sv" style="color:var(--text-2)" id="sim-cache-current">${fmtCost(totalCost)}</div><div class="sl">Current Cost</div></div>
+                        <div class="sim-card"><div class="sv" style="color:var(--green)" id="sim-cache-projected">${fmtCost(totalCost)}</div><div class="sl">Projected Cost</div></div>
+                        <div class="sim-card"><div class="sv" style="color:var(--orange)" id="sim-cache-savings">$0.00</div><div class="sl">Savings</div></div>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+
+    // Slider handlers
+    const modelSlider=document.getElementById('sim-model-slider');
+    const cacheSlider=document.getElementById('sim-cache-slider');
+    modelSlider.addEventListener('input',function(){
+        const pct=parseInt(this.value)/100;
+        document.getElementById('sim-model-val').textContent=this.value;
+        const shifted=expensiveCost*pct;
+        const savings=shifted*(1-cheapRatio);
+        const projected=totalCost-savings;
+        document.getElementById('sim-model-projected').textContent=fmtCost(Math.max(0,projected));
+        document.getElementById('sim-model-savings').textContent=fmtCost(savings);
+    });
+    cacheSlider.addEventListener('input',function(){
+        const improvement=parseInt(this.value)/100;
+        document.getElementById('sim-cache-val').textContent=this.value;
+        // Cache reads are ~10x cheaper than fresh input. More cache = less fresh input cost.
+        // Approximate: each 1% cache improvement saves ~0.9% of input cost
+        const inputCostFraction=0.6; // input is roughly 60% of total cost
+        const savings=totalCost*inputCostFraction*improvement*0.9;
+        const projected=totalCost-savings;
+        document.getElementById('sim-cache-projected').textContent=fmtCost(Math.max(0,projected));
+        document.getElementById('sim-cache-savings').textContent=fmtCost(savings);
+    });
+    }catch(e){app.innerHTML='<div class="card" style="padding:48px;text-align:center;color:var(--text-3)">Could not load simulator data.</div>';}
+}
+
+// ── FEATURE 15: Subagent Cost Tree ──────────────
+async function renderSubagentTree(container){
+    try{
+        const tree=await(await fetch('/api/subagent-tree')).json();
+        if(!tree||!tree.length)return;
+        const maxCost=Math.max(1,...tree.map(t=>t.total_cost||0));
+        let html='<div class="card" style="margin-top:16px"><div class="card-header">Subagent Cost Tree ${tip(TIPS.subTree)}</div>';
+        tree.slice(0,20).forEach(session=>{
+            const barW=Math.max(2,((session.total_cost||0)/maxCost)*100);
+            html+=`<div class="tree-toggle" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+                <span style="color:var(--text-3);font-size:10px">&#9654;</span>
+                <span class="mono" style="color:var(--blue)">${escHtml((session.project_name||'Session').slice(0,30))}</span>
+                <span class="mono" style="color:var(--text-2);font-size:10px">${fmtCost(session.total_cost||0)}</span>
+                <span class="tree-cost-bar" style="width:${barW}%"></span>
+            </div>`;
+            html+='<div class="tree-node" style="display:none">';
+            if(session.subagents&&session.subagents.length){
+                session.subagents.forEach(sub=>{
+                    const subBarW=Math.max(2,((sub.total_cost||0)/maxCost)*100);
+                    html+=`<div style="font-size:11px;padding:3px 0;display:flex;align-items:center;gap:8px">
+                        <span class="mono" style="color:var(--purple)">${escHtml(sub.slug||sub.agent_id||'agent')}</span>
+                        <span class="mono" style="color:var(--text-3)">${sub.message_count||0} msgs</span>
+                        <span class="mono" style="color:var(--orange)">${fmtCost(sub.total_cost||0)}</span>
+                        <span class="tree-cost-bar" style="width:${subBarW}%"></span>
+                    </div>`;
+                });
+            }else{
+                html+='<div style="font-size:11px;color:var(--text-3);padding:3px 0">No subagents</div>';
+            }
+            html+='</div>';
+        });
+        html+='</div>';
+        container.insertAdjacentHTML('beforeend',html);
+    }catch(e){/* silent — endpoint may not exist yet */}
+}
+
+// ── FEATURE 16: Session Bookmarks ───────────────
+async function bookmarkSession(sessionId){
+    try{
+        await fetch('/api/bookmarks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId})});
+        showToast('Session bookmarked');
+    }catch(e){showToast('Failed to bookmark');}
+}
+async function removeBookmark(sessionId){
+    try{
+        await fetch('/api/bookmarks/'+encodeURIComponent(sessionId),{method:'DELETE'});
+        showToast('Bookmark removed');
+        renderSessions();
+    }catch(e){showToast('Failed to remove bookmark');}
+}
+
+// ── FEATURE 17: Keyboard Shortcuts ──────────────
+document.addEventListener('keydown',function(e){
+    // Skip if user is typing in an input/select/textarea
+    if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='TEXTAREA')return;
+    const tabKeys=['live','overview','sessions','tools','git','project','insights','simulator'];
+    if(e.key>='1'&&e.key<='8'){
+        const idx=parseInt(e.key)-1;
+        if(idx<tabKeys.length){
+            const nav=document.querySelector('.nav-item[data-tab="'+tabKeys[idx]+'"]');
+            if(nav)nav.click();
+        }
+        return;
+    }
+    if(e.key==='?'){document.getElementById('shortcuts-modal').classList.add('open');return;}
+    if(e.key==='r'&&!e.metaKey&&!e.ctrlKey){regenerate();return;}
+    if(e.key==='Escape'){
+        document.querySelectorAll('.modal-overlay.open').forEach(m=>m.classList.remove('open'));
+        return;
+    }
+});
+document.getElementById('shortcuts-modal').addEventListener('click',function(e){if(e.target===e.currentTarget)e.currentTarget.classList.remove('open');});
 
 // ── Helpers ──────────────────────────────────────
 function el(id){return document.getElementById(id).getContext('2d');}

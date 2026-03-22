@@ -132,6 +132,24 @@ function initSchema(db) {
     CREATE INDEX IF NOT EXISTS idx_subagents_session ON subagents(session_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_project ON sessions(project_id);
   `);
+
+  // Bookmarks table (v2.2)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS bookmarks (
+      id INTEGER PRIMARY KEY,
+      session_id TEXT UNIQUE,
+      label TEXT,
+      note TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+  `);
+
+  // Schema migrations for v2.2 — new JSONL fields
+  try { db.exec('ALTER TABLE messages ADD COLUMN speed TEXT'); } catch {}
+  try { db.exec('ALTER TABLE messages ADD COLUMN web_search_count INTEGER DEFAULT 0'); } catch {}
+  try { db.exec('ALTER TABLE messages ADD COLUMN web_fetch_count INTEGER DEFAULT 0'); } catch {}
+  try { db.exec('ALTER TABLE messages ADD COLUMN is_sidechain INTEGER DEFAULT 0'); } catch {}
+  try { db.exec('ALTER TABLE sessions ADD COLUMN permission_mode TEXT'); } catch {}
 }
 
 async function readJsonlFile(filePath) {
@@ -243,8 +261,9 @@ async function indexFile(db, filePath, projectId, isSubagent = false) {
 
   const insertMessage = db.prepare(`
     INSERT OR IGNORE INTO messages (id, session_id, project_id, parent_uuid, type, model, timestamp, date,
-      input_tokens, output_tokens, cache_read, cache_write, cost, has_tool_use, content_preview, agent_id, agent_slug)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      input_tokens, output_tokens, cache_read, cache_write, cost, has_tool_use, content_preview, agent_id, agent_slug,
+      speed, web_search_count, web_fetch_count, is_sidechain)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertToolCall = db.prepare(`
@@ -279,6 +298,10 @@ async function indexFile(db, filePath, projectId, isSubagent = false) {
       total_cache_read = subagents.total_cache_read + excluded.total_cache_read,
       total_cache_write = subagents.total_cache_write + excluded.total_cache_write,
       total_cost = subagents.total_cost + excluded.total_cost
+  `);
+
+  const updateSessionPermission = db.prepare(`
+    UPDATE sessions SET permission_mode = ? WHERE id = ?
   `);
 
   let sessionTokens = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, count: 0 };
@@ -325,15 +348,28 @@ async function indexFile(db, filePath, projectId, isSubagent = false) {
     const hasToolUse = toolCalls.length > 0 ? 1 : 0;
     const preview = getContentPreview(content);
 
+    // Extract new v2.2 fields
+    const speed = usage.speed || null;
+    const serverToolUse = usage.server_tool_use || {};
+    const webSearchCount = serverToolUse.web_search_requests || 0;
+    const webFetchCount = serverToolUse.web_fetch_requests || 0;
+    const isSidechain = entry.isSidechain ? 1 : 0;
+
     insertMessage.run(
       entry.uuid, sessionId, projectId, entry.parentUuid || null,
       msgType, model, ts, date,
       inputTokens, outputTokens, cacheRead, cacheWrite, cost,
-      hasToolUse, preview, agentId, agentSlug
+      hasToolUse, preview, agentId, agentSlug,
+      speed, webSearchCount, webFetchCount, isSidechain
     );
 
     for (const toolName of toolCalls) {
       insertToolCall.run(entry.uuid, sessionId, projectId, toolName, ts, date);
+    }
+
+    // Extract permission mode from user messages
+    if (msgType === 'user' && entry.permissionMode && sessionId) {
+      updateSessionPermission.run(entry.permissionMode, sessionId);
     }
 
     if (msgType === 'assistant') {
@@ -548,7 +584,8 @@ function getSessions(options = {}) {
         s.first_timestamp, s.last_timestamp,
         s.message_count, s.total_input_tokens, s.total_output_tokens,
         s.total_cache_read, s.total_cache_write, s.total_cost,
-        s.version, s.git_branch
+        s.version, s.git_branch, s.permission_mode,
+        ROUND((julianday(s.last_timestamp) - julianday(s.first_timestamp)) * 24 * 60, 1) as duration_minutes
       FROM sessions s
       JOIN projects p ON s.project_id = p.id
       WHERE 1=1
@@ -561,7 +598,15 @@ function getSessions(options = {}) {
     if (options.limit) { sql += ' LIMIT ?'; params.push(options.limit); }
     if (options.offset) { sql += ' OFFSET ?'; params.push(options.offset); }
 
-    return db.prepare(sql).all(...params);
+    const rows = db.prepare(sql).all(...params);
+    return rows.map(row => {
+      const durationHours = (row.duration_minutes || 0) / 60;
+      return {
+        ...row,
+        cost_per_hour: durationHours > 0 ? row.total_cost / durationHours : 0,
+        messages_per_hour: durationHours > 0 ? row.message_count / durationHours : 0,
+      };
+    });
   });
 }
 
@@ -893,8 +938,9 @@ function getWindowStats() {
   return query(db => {
     const result = { billingWindow: null };
     const now = new Date();
-    const windowStart = new Date(now.getTime() - 5 * 60 * 60 * 1000);
+    const fiveHoursAgo = new Date(now.getTime() - 5 * 60 * 60 * 1000);
 
+    // Get usage in the rolling 5h window
     const usage = db.prepare(`
       SELECT COUNT(*) as msgs, COALESCE(SUM(cost),0) as cost,
         COALESCE(SUM(input_tokens),0) as input_tokens,
@@ -902,30 +948,531 @@ function getWindowStats() {
         COALESCE(SUM(cache_read),0) as cache_read,
         COALESCE(SUM(cache_write),0) as cache_write
       FROM messages WHERE type='assistant' AND timestamp >= ?
-    `).get(windowStart.toISOString());
+    `).get(fiveHoursAgo.toISOString());
 
-    const oldest = db.prepare(`
+    if (!usage || usage.msgs === 0) return result;
+
+    // Find first and last activity in this window
+    const firstMsg = db.prepare(`
       SELECT timestamp FROM messages WHERE type='assistant' AND timestamp >= ?
       ORDER BY timestamp ASC LIMIT 1
-    `).get(windowStart.toISOString());
+    `).get(fiveHoursAgo.toISOString());
 
-    let resetTime = null;
-    if (oldest?.timestamp) {
-      resetTime = new Date(new Date(oldest.timestamp).getTime() + 5 * 60 * 60 * 1000);
-    }
+    const lastMsg = db.prepare(`
+      SELECT timestamp FROM messages WHERE type='assistant' AND timestamp >= ?
+      ORDER BY timestamp DESC LIMIT 1
+    `).get(fiveHoursAgo.toISOString());
 
-    const freshTokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
-    const totalTokens = freshTokens + (usage.cache_read || 0) + (usage.cache_write || 0);
+    const firstTime = new Date(firstMsg.timestamp);
+    const lastTime = new Date(lastMsg.timestamp);
+
+    // "Resets at" = when the first message in this window ages out of the 5h window
+    const resetsAt = new Date(firstTime.getTime() + 5 * 60 * 60 * 1000);
+    const resetsInMin = Math.max(0, Math.floor((resetsAt.getTime() - now.getTime()) / 60000));
+
+    // Time elapsed since first activity in this window
+    const elapsedMin = Math.floor((now.getTime() - firstTime.getTime()) / 60000);
+
+    // Active time span (first msg to last msg)
+    const activeSpanMin = Math.floor((lastTime.getTime() - firstTime.getTime()) / 60000);
+
+    const outputTokens = usage.output_tokens || 0;
+    const inputTokens = usage.input_tokens || 0;
 
     result.billingWindow = {
-      windowStart: windowStart.toISOString(),
-      resetTime: resetTime ? resetTime.toISOString() : null,
-      msgs: usage.msgs || 0,
-      freshTokens,
-      totalTokens,
-      cost: usage.cost || 0,
+      msgs: usage.msgs,
+      inputTokens,
+      outputTokens,
+      cacheRead: usage.cache_read || 0,
+      cost: usage.cost,
+      // Timing
+      firstActivity: firstTime.toISOString(),
+      lastActivity: lastTime.toISOString(),
+      elapsedMin,
+      activeSpanMin,
+      resetsAt: resetsAt.toISOString(),
+      resetsInMin,
     };
     return result;
+  });
+}
+
+function calculateEfficiency(session) {
+  const inputTok = session.total_input_tokens || 0;
+  const outputTok = session.total_output_tokens || 0;
+  const cacheRead = session.total_cache_read || 0;
+
+  // Factor 1: Output/Input ratio (30% weight)
+  const ioRatio = outputTok / Math.max(inputTok, 1);
+  const ioScore = Math.min(ioRatio / 0.5, 1);
+
+  // Factor 2: Cache hit rate (40% weight)
+  const totalInput = inputTok + cacheRead;
+  const cacheRate = totalInput > 0 ? cacheRead / totalInput : 0;
+  const cacheScore = cacheRate;
+
+  // Factor 3: Cost per message (30% weight)
+  const costPerMsg = session.message_count > 0 ? (session.total_cost || 0) / session.message_count : 1;
+  const costScore = Math.max(0, 1 - costPerMsg / 0.5);
+
+  const score = ioScore * 0.3 + cacheScore * 0.4 + costScore * 0.3;
+  const grades = ['F', 'D', 'C', 'B', 'A'];
+  const grade = grades[Math.min(Math.floor(score * 5), 4)];
+  return { score: Math.round(score * 100), grade };
+}
+
+function getBudgetStatus() {
+  return query(db => {
+    const config = loadConfig();
+    const budget = config.monthlyBudget;
+    if (!budget) return { enabled: false };
+
+    const now = new Date();
+    const monthPrefix = now.toISOString().slice(0, 7); // "2026-03"
+
+    const usage = db.prepare(`
+      SELECT COALESCE(SUM(cost), 0) as month_cost,
+             COUNT(*) as month_msgs
+      FROM messages WHERE type = 'assistant' AND date LIKE ?
+    `).get(monthPrefix + '%');
+
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const dayOfMonth = now.getDate();
+    const dailyRate = dayOfMonth > 0 ? usage.month_cost / dayOfMonth : 0;
+    const projected = dailyRate * daysInMonth;
+
+    return {
+      enabled: true,
+      budget,
+      spent: usage.month_cost,
+      remaining: Math.max(0, budget - usage.month_cost),
+      pct: Math.min(100, (usage.month_cost / budget) * 100),
+      dailyRate,
+      projected,
+      daysLeft: daysInMonth - dayOfMonth,
+    };
+  });
+}
+
+function getHourlyActivity(options = {}) {
+  return query(db => {
+    let where = "WHERE type = 'assistant' AND timestamp IS NOT NULL";
+    const params = [];
+    if (options.startDate) { where += ' AND date >= ?'; params.push(options.startDate); }
+    if (options.endDate) { where += ' AND date <= ?'; params.push(options.endDate); }
+
+    return db.prepare(`
+      SELECT
+        CAST(strftime('%w', timestamp) AS INTEGER) as day_of_week,
+        CAST(strftime('%H', timestamp) AS INTEGER) as hour,
+        COUNT(*) as messages,
+        COALESCE(SUM(cost), 0) as cost
+      FROM messages ${where}
+      GROUP BY day_of_week, hour
+      ORDER BY day_of_week, hour
+    `).all(...params);
+  });
+}
+
+function getPeriodComparison(currentStart, currentEnd, prevStart, prevEnd) {
+  return query(db => {
+    const q = `SELECT COALESCE(SUM(cost),0) as cost, COUNT(*) as msgs,
+      COUNT(DISTINCT session_id) as sessions,
+      COALESCE(SUM(input_tokens),0) as input_tokens,
+      COALESCE(SUM(output_tokens),0) as output_tokens
+      FROM messages WHERE type='assistant' AND date BETWEEN ? AND ?`;
+    const current = db.prepare(q).get(currentStart, currentEnd);
+    const previous = db.prepare(q).get(prevStart, prevEnd);
+    return { current, previous };
+  });
+}
+
+// ── Feature 9: Model Recommendation Engine ──────────────
+function getModelRecommendations() {
+  return query(db => {
+    const pricing = require('./pricing');
+    const haikuPricing = pricing.getPricing('claude-haiku-4-5-20251001');
+
+    // Find sessions using expensive models with simple patterns
+    const sessions = db.prepare(`
+      SELECT s.id as session_id, s.message_count, s.total_cost,
+        s.total_input_tokens, s.total_output_tokens,
+        s.total_cache_read, s.total_cache_write,
+        p.name as project_name
+      FROM sessions s
+      JOIN projects p ON s.project_id = p.id
+      WHERE s.message_count < 10 AND s.total_cost > 0
+    `).all();
+
+    const recommendations = [];
+    let totalSavings = 0;
+
+    for (const sess of sessions) {
+      // Get the dominant model for this session
+      const modelRow = db.prepare(`
+        SELECT model, COUNT(*) as cnt FROM messages
+        WHERE session_id = ? AND type = 'assistant' AND model IS NOT NULL
+        GROUP BY model ORDER BY cnt DESC LIMIT 1
+      `).get(sess.session_id);
+
+      if (!modelRow || !modelRow.model) continue;
+      const model = modelRow.model;
+
+      // Only recommend for expensive models (opus/sonnet)
+      if (!model.includes('opus') && !model.includes('sonnet')) continue;
+
+      // Check tool usage — only simple tools (Read, Grep, Glob)
+      const tools = db.prepare(`
+        SELECT tool_name, COUNT(*) as cnt FROM tool_calls
+        WHERE session_id = ?
+        GROUP BY tool_name
+      `).all(sess.session_id);
+
+      const simpleTools = new Set(['Read', 'Grep', 'Glob']);
+      const hasComplexTools = tools.some(t => !simpleTools.has(t.tool_name));
+      if (hasComplexTools) continue;
+
+      // Check output tokens are low (< 5000)
+      if (sess.total_output_tokens > 5000) continue;
+
+      // Calculate projected cost with haiku
+      const projectedCost =
+        (sess.total_input_tokens / 1_000_000) * haikuPricing.input +
+        (sess.total_output_tokens / 1_000_000) * haikuPricing.output +
+        (sess.total_cache_read / 1_000_000) * haikuPricing.cacheRead +
+        (sess.total_cache_write / 1_000_000) * haikuPricing.cacheWrite;
+
+      const savings = sess.total_cost - projectedCost;
+      if (savings <= 0) continue;
+
+      totalSavings += savings;
+      recommendations.push({
+        sessionId: sess.session_id,
+        projectName: sess.project_name,
+        currentModel: model,
+        suggestedModel: 'claude-haiku-4-5-20251001',
+        currentCost: sess.total_cost,
+        projectedCost,
+        savings,
+        reason: `Simple session (${sess.message_count} messages, read-only tools, low output) — Haiku would suffice`,
+      });
+    }
+
+    recommendations.sort((a, b) => b.savings - a.savings);
+    return { recommendations, totalSavings };
+  });
+}
+
+// ── Feature 10: Session Clustering ──────────────────────
+function getSessionClusters() {
+  return query(db => {
+    // Get tool usage per session
+    const sessionTools = db.prepare(`
+      SELECT tc.session_id, tc.tool_name, COUNT(*) as cnt
+      FROM tool_calls tc
+      GROUP BY tc.session_id, tc.tool_name
+    `).all();
+
+    // Group tools by session
+    const toolsBySession = {};
+    for (const row of sessionTools) {
+      if (!toolsBySession[row.session_id]) toolsBySession[row.session_id] = {};
+      toolsBySession[row.session_id][row.tool_name] = row.cnt;
+    }
+
+    // Get session metadata
+    const sessions = db.prepare(`
+      SELECT s.id, s.message_count, s.total_cost, p.name as project_name
+      FROM sessions s JOIN projects p ON s.project_id = p.id
+      WHERE s.total_cost > 0
+    `).all();
+
+    // Classify each session
+    const clusters = {};
+    const clusterTypes = ['bug-fixing', 'exploration', 'greenfield', 'refactoring', 'testing', 'review', 'other'];
+    for (const type of clusterTypes) {
+      clusters[type] = { type, sessions: 0, totalCost: 0, totalMessages: 0 };
+    }
+
+    for (const sess of sessions) {
+      const tools = toolsBySession[sess.id] || {};
+      const total = Object.values(tools).reduce((s, v) => s + v, 0) || 1;
+
+      const grep = (tools['Grep'] || 0) / total;
+      const read = (tools['Read'] || 0) / total;
+      const edit = (tools['Edit'] || 0) / total;
+      const write = (tools['Write'] || 0) / total;
+      const bash = (tools['Bash'] || 0) / total;
+
+      let type;
+      if (grep > 0.2 && read > 0.2 && edit > 0.15) {
+        type = 'bug-fixing';
+      } else if (read > 0.3 && grep > 0.2 && edit < 0.1) {
+        type = 'exploration';
+      } else if (write > 0.2 && bash > 0.15) {
+        type = 'greenfield';
+      } else if (edit > 0.3 && read > 0.2) {
+        type = 'refactoring';
+      } else if (bash > 0.4) {
+        type = 'testing';
+      } else if (read > 0.5 && edit < 0.05) {
+        type = 'review';
+      } else {
+        type = 'other';
+      }
+
+      clusters[type].sessions++;
+      clusters[type].totalCost += sess.total_cost || 0;
+      clusters[type].totalMessages += sess.message_count || 0;
+    }
+
+    // Calculate averages and filter empty clusters
+    const result = Object.values(clusters)
+      .filter(c => c.sessions > 0)
+      .map(c => ({
+        ...c,
+        avgCostPerSession: c.sessions > 0 ? c.totalCost / c.sessions : 0,
+      }));
+
+    return { clusters: result };
+  });
+}
+
+// ── Feature 15: Subagent Cost Tree ──────────────────────
+function getSubagentTree() {
+  return query(db => {
+    // Get sessions that have subagents
+    const sessionsWithSubs = db.prepare(`
+      SELECT DISTINCT sa.session_id, s.total_cost as session_cost, p.name as project_name
+      FROM subagents sa
+      JOIN sessions s ON sa.session_id = s.id
+      JOIN projects p ON s.project_id = p.id
+      ORDER BY s.last_timestamp DESC
+    `).all();
+
+    const result = [];
+    for (const sess of sessionsWithSubs) {
+      const subs = db.prepare(`
+        SELECT slug, total_cost as cost, message_count as messages
+        FROM subagents WHERE session_id = ?
+        ORDER BY total_cost DESC
+      `).all(sess.session_id);
+
+      result.push({
+        sessionId: sess.session_id,
+        projectName: sess.project_name,
+        sessionCost: sess.session_cost || 0,
+        subagents: subs,
+      });
+    }
+
+    return { sessions: result };
+  });
+}
+
+// ── Feature 16: Session Bookmarks ───────────────────────
+function addBookmark(sessionId, label, note) {
+  return query(db => {
+    db.prepare(`
+      INSERT OR REPLACE INTO bookmarks (session_id, label, note, created_at)
+      VALUES (?, ?, ?, datetime('now'))
+    `).run(sessionId, label || null, note || null);
+    return { ok: true };
+  });
+}
+
+function removeBookmark(sessionId) {
+  return query(db => {
+    db.prepare('DELETE FROM bookmarks WHERE session_id = ?').run(sessionId);
+    return { ok: true };
+  });
+}
+
+function getBookmarks() {
+  return query(db => {
+    return db.prepare(`
+      SELECT b.*, s.message_count, s.total_cost, s.first_timestamp, s.last_timestamp,
+        p.name as project_name
+      FROM bookmarks b
+      LEFT JOIN sessions s ON b.session_id = s.id
+      LEFT JOIN projects p ON s.project_id = p.id
+      ORDER BY b.created_at DESC
+    `).all();
+  });
+}
+
+// ── Feature 18: Streak/Achievement System ───────────────
+function getAchievements() {
+  return query(db => {
+    const achievements = [];
+
+    // Helper to get earned date from a query
+    const totalSessions = db.prepare('SELECT COUNT(*) as c FROM sessions').get().c;
+    const totalTokens = db.prepare(`
+      SELECT COALESCE(SUM(input_tokens + output_tokens + cache_read + cache_write), 0) as c
+      FROM messages WHERE type = 'assistant'
+    `).get().c;
+
+    // Cache hit rate
+    const cacheStats = db.prepare(`
+      SELECT COALESCE(SUM(cache_read), 0) as cache_read,
+        COALESCE(SUM(input_tokens + cache_read), 0) as total_input
+      FROM messages WHERE type = 'assistant'
+    `).get();
+    const cacheHitRate = cacheStats.total_input > 0 ? (cacheStats.cache_read / cacheStats.total_input) * 100 : 0;
+
+    // Longest session duration
+    const longestSession = db.prepare(`
+      SELECT id, ROUND((julianday(last_timestamp) - julianday(first_timestamp)) * 24, 2) as hours
+      FROM sessions WHERE first_timestamp IS NOT NULL AND last_timestamp IS NOT NULL
+      ORDER BY hours DESC LIMIT 1
+    `).get();
+
+    // Most messages in a single session
+    const maxMessages = db.prepare(`
+      SELECT id, message_count FROM sessions ORDER BY message_count DESC LIMIT 1
+    `).get();
+
+    // Model count
+    const modelCount = db.prepare(`
+      SELECT COUNT(DISTINCT model) as c FROM messages
+      WHERE type = 'assistant' AND model IS NOT NULL AND model != '<synthetic>'
+    `).get().c;
+
+    // Consecutive active days (streak)
+    const activeDays = db.prepare(`
+      SELECT DISTINCT date FROM messages
+      WHERE type = 'assistant' AND date IS NOT NULL
+      ORDER BY date
+    `).all().map(r => r.date);
+
+    let maxStreak = 0;
+    let currentStreak = 0;
+    for (let i = 0; i < activeDays.length; i++) {
+      if (i === 0) {
+        currentStreak = 1;
+      } else {
+        const prev = new Date(activeDays[i - 1]);
+        const curr = new Date(activeDays[i]);
+        const diff = (curr - prev) / (24 * 60 * 60 * 1000);
+        if (diff === 1) {
+          currentStreak++;
+        } else {
+          currentStreak = 1;
+        }
+      }
+      if (currentStreak > maxStreak) maxStreak = currentStreak;
+    }
+
+    // Budget hawk — check if stayed under budget for full previous month
+    const config = loadConfig();
+    const now = new Date();
+    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevMonthStr = prevMonth.toISOString().slice(0, 7);
+    const prevMonthCost = db.prepare(`
+      SELECT COALESCE(SUM(cost), 0) as c FROM messages WHERE type = 'assistant' AND date LIKE ?
+    `).get(prevMonthStr + '%').c;
+    const budgetHawk = config.monthlyBudget && prevMonthCost > 0 && prevMonthCost <= config.monthlyBudget;
+
+    // ROI calculation
+    const summary = db.prepare(`
+      SELECT COALESCE(SUM(cost), 0) as total_cost FROM messages WHERE type = 'assistant'
+    `).get();
+    const monthsActive = Math.max(1, activeDays.length / 30);
+    const actualCost = monthsActive * (config.monthlyRate || 0);
+    const roi = actualCost > 0 ? summary.total_cost / actualCost : 0;
+
+    // First session date
+    const firstSession = db.prepare(`
+      SELECT first_timestamp FROM sessions ORDER BY first_timestamp ASC LIMIT 1
+    `).get();
+
+    // Build achievements list
+    achievements.push({
+      id: 'first_session', name: 'First Session', icon: '🎯',
+      description: 'Complete your first Claude Code session',
+      earned: totalSessions >= 1,
+      earnedDate: firstSession?.first_timestamp || null,
+    });
+
+    achievements.push({
+      id: 'power_user', name: 'Power User', icon: '🚀',
+      description: 'Complete 100+ sessions',
+      earned: totalSessions >= 100,
+      earnedDate: totalSessions >= 100 ? (db.prepare('SELECT first_timestamp FROM sessions ORDER BY first_timestamp ASC LIMIT 1 OFFSET 99').get()?.first_timestamp || null) : null,
+    });
+
+    achievements.push({
+      id: 'token_millionaire', name: 'Token Millionaire', icon: '💰',
+      description: 'Use 1M+ total tokens',
+      earned: totalTokens >= 1_000_000,
+      earnedDate: totalTokens >= 1_000_000 ? (firstSession?.first_timestamp || null) : null,
+    });
+
+    achievements.push({
+      id: 'token_billionaire', name: 'Token Billionaire', icon: '💎',
+      description: 'Use 1B+ total tokens',
+      earned: totalTokens >= 1_000_000_000,
+      earnedDate: null,
+    });
+
+    achievements.push({
+      id: 'cache_master', name: 'Cache Master', icon: '🧠',
+      description: 'Achieve 80%+ cache hit rate',
+      earned: cacheHitRate >= 80,
+      earnedDate: null,
+    });
+
+    achievements.push({
+      id: 'marathon', name: 'Marathon', icon: '🏆',
+      description: 'Have a session longer than 2 hours',
+      earned: (longestSession?.hours || 0) >= 2,
+      earnedDate: null,
+    });
+
+    achievements.push({
+      id: 'speed_demon', name: 'Speed Demon', icon: '⚡',
+      description: '50+ messages in a single session',
+      earned: (maxMessages?.message_count || 0) >= 50,
+      earnedDate: null,
+    });
+
+    achievements.push({
+      id: 'polyglot', name: 'Polyglot', icon: '🌟',
+      description: 'Use 3+ different models',
+      earned: modelCount >= 3,
+      earnedDate: null,
+    });
+
+    achievements.push({
+      id: 'week_streak', name: 'Week Streak', icon: '🔥',
+      description: '7 consecutive active days',
+      earned: maxStreak >= 7,
+      earnedDate: null,
+    });
+
+    achievements.push({
+      id: 'month_streak', name: 'Month Streak', icon: '🎖️',
+      description: '30 consecutive active days',
+      earned: maxStreak >= 30,
+      earnedDate: null,
+    });
+
+    achievements.push({
+      id: 'budget_hawk', name: 'Budget Hawk', icon: '🎯',
+      description: 'Stay under budget for a full month',
+      earned: !!budgetHawk,
+      earnedDate: budgetHawk ? prevMonthStr + '-28' : null,
+    });
+
+    achievements.push({
+      id: 'roi_king', name: 'ROI King', icon: '🚀',
+      description: '10x+ ROI (API value vs subscription cost)',
+      earned: roi >= 10,
+      earnedDate: null,
+    });
+
+    return { achievements };
   });
 }
 
@@ -934,4 +1481,7 @@ module.exports = {
   getSummary, getProjects, getDailyUsage, getModelUsage,
   getSessions, getSessionDetail, getToolStats, getSubagents,
   getProjectDailyTokens, getInsights, getWindowStats,
+  calculateEfficiency, getBudgetStatus, getHourlyActivity, getPeriodComparison,
+  getModelRecommendations, getSessionClusters, getSubagentTree,
+  addBookmark, removeBookmark, getBookmarks, getAchievements,
 };

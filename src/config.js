@@ -16,6 +16,7 @@ const CLAUDE_DIR = path.join(os.homedir(), '.claude');
 const DEFAULT_CONFIG = {
   plan: 'max_100',
   monthlyRate: 100,
+  monthlyBudget: null,
   claudeDir: CLAUDE_DIR,
 };
 

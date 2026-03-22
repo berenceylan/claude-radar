@@ -315,7 +315,78 @@ function getMostExpensiveCommits(limit = 20) {
   });
 }
 
+function getCostPerLine(options = {}) {
+  return query(db => {
+    try {
+      let where = 'WHERE g.estimated_cost > 0';
+      const params = [];
+      if (options.startDate) { where += ' AND g.date >= ?'; params.push(options.startDate); }
+      if (options.endDate) { where += ' AND g.date <= ?'; params.push(options.endDate); }
+      if (options.projectId) { where += ' AND g.project_id = ?'; params.push(options.projectId); }
+
+      const byProject = db.prepare(`
+        SELECT p.name as project_name, p.id as project_id,
+          SUM(g.insertions) as insertions,
+          SUM(g.deletions) as deletions,
+          SUM(g.estimated_cost) as total_cost,
+          COUNT(*) as commits,
+          CASE WHEN (SUM(g.insertions) + SUM(g.deletions)) > 0
+            THEN SUM(g.estimated_cost) * 1.0 / (SUM(g.insertions) + SUM(g.deletions))
+            ELSE 0 END as cost_per_line
+        FROM git_commits g
+        JOIN projects p ON g.project_id = p.id
+        ${where}
+        GROUP BY p.id
+        ORDER BY cost_per_line DESC
+      `).all(...params);
+
+      const trend = db.prepare(`
+        SELECT substr(g.date, 1, 10) as date,
+          SUM(g.estimated_cost) as cost,
+          SUM(g.insertions + g.deletions) as lines,
+          CASE WHEN SUM(g.insertions + g.deletions) > 0
+            THEN SUM(g.estimated_cost) * 1.0 / (SUM(g.insertions + g.deletions))
+            ELSE 0 END as cost_per_line
+        FROM git_commits g
+        ${where}
+        GROUP BY substr(g.date, 1, 10)
+        ORDER BY date
+      `).all(...params);
+
+      return { byProject, trend };
+    } catch { return { byProject: [], trend: [] }; }
+  });
+}
+
+// ── Feature 11: Git Branch + PR Correlation ─────────────
+function getBranchPRCost(options = {}) {
+  return query(db => {
+    try {
+      let sql = `
+        SELECT g.branch, p.name as project_name,
+          COUNT(*) as commits,
+          SUM(g.estimated_cost) as cost,
+          SUM(g.insertions) as insertions,
+          SUM(g.deletions) as deletions,
+          MIN(g.date) as firstCommit,
+          MAX(g.date) as lastCommit
+        FROM git_commits g
+        JOIN projects p ON g.project_id = p.id
+        WHERE 1=1
+      `;
+      const params = [];
+      if (options.projectId) { sql += ' AND g.project_id = ?'; params.push(options.projectId); }
+      if (options.branch) { sql += ' AND g.branch = ?'; params.push(options.branch); }
+      if (options.startDate) { sql += ' AND g.date >= ?'; params.push(options.startDate); }
+      if (options.endDate) { sql += ' AND g.date <= ?'; params.push(options.endDate + 'T23:59:59'); }
+      sql += ' GROUP BY g.branch, p.id ORDER BY cost DESC';
+      return { branches: db.prepare(sql).all(...params) };
+    } catch { return { branches: [] }; }
+  });
+}
+
 module.exports = {
   indexGitData, getGitSummary, getGitByProject, getGitByBranch,
-  getGitCommits, getGitTimeline, getMostExpensiveCommits,
+  getGitCommits, getGitTimeline, getMostExpensiveCommits, getCostPerLine,
+  getBranchPRCost,
 };

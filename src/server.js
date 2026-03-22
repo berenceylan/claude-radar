@@ -152,10 +152,21 @@ function createServer(options = {}) {
     }
   });
 
-  // ── Live stats (5h billing window) ──────────────────
+  // ── Live stats (5h billing window + rate limits from statusline) ──
   app.get('/api/live', (req, res) => {
     try {
-      res.json(db.getWindowStats());
+      const result = db.getWindowStats();
+      // Read real-time rate limit data from statusline hook
+      const ratePath = path.join(config.configDir || path.join(require('os').homedir(), '.claude-radar'), 'rate-limits.json');
+      try {
+        const raw = fs.readFileSync(ratePath, 'utf8');
+        const rl = JSON.parse(raw);
+        // Only use if data is fresh (less than 10 minutes old)
+        if (rl.ts && (Date.now() / 1000 - rl.ts) < 600) {
+          result.rateLimits = { usedPct: rl.usedPct, resetsAt: rl.resetsAt };
+        }
+      } catch { /* file may not exist yet */ }
+      res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -347,6 +358,15 @@ function createServer(options = {}) {
     } catch (err) { res.status(500).json({ error: err.message }); }
   });
 
+  app.get('/api/git/cost-per-line', (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      res.json(git.getCostPerLine({ startDate, endDate }));
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── Export ────────────────────────────────────────
   app.get('/api/export/json', (req, res) => {
     try {
@@ -395,6 +415,61 @@ function createServer(options = {}) {
     }
   });
 
+  // ── Budget & Analytics ──────────────────────────────
+  app.get('/api/budget', (req, res) => {
+    try {
+      res.json(db.getBudgetStatus());
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/heatmap', (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      res.json(db.getHourlyActivity({ startDate, endDate }));
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/comparison', (req, res) => {
+    try {
+      const { period } = req.query; // 'week' or 'month'
+      const now = new Date();
+      let currentStart, currentEnd, prevStart, prevEnd;
+
+      if (period === 'month') {
+        currentStart = now.toISOString().slice(0, 7) + '-01';
+        currentEnd = now.toISOString().slice(0, 10);
+        const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        prevStart = prev.toISOString().slice(0, 7) + '-01';
+        prevEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().slice(0, 10);
+      } else {
+        // Default: week
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+        currentStart = weekAgo.toISOString().slice(0, 10);
+        currentEnd = now.toISOString().slice(0, 10);
+        prevStart = twoWeeksAgo.toISOString().slice(0, 10);
+        prevEnd = weekAgo.toISOString().slice(0, 10);
+      }
+
+      res.json(db.getPeriodComparison(currentStart, currentEnd, prevStart, prevEnd));
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/pricing', (req, res) => {
+    try {
+      const pricing = require('./pricing');
+      res.json(pricing.MODEL_PRICING || {});
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── Config ────────────────────────────────────────
   app.get('/api/config', (req, res) => {
     const cfg = loadConfig();
@@ -404,12 +479,89 @@ function createServer(options = {}) {
 
   app.post('/api/config', (req, res) => {
     try {
-      const { plan, monthlyRate } = req.body;
+      const { plan, monthlyRate, monthlyBudget } = req.body;
       const current = loadConfig();
       if (plan) current.plan = plan;
       if (monthlyRate !== undefined) current.monthlyRate = Number(monthlyRate);
+      if (monthlyBudget !== undefined) current.monthlyBudget = monthlyBudget === null ? null : Number(monthlyBudget);
       saveConfig(current);
       res.json({ ok: true, config: current });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Model Recommendations ───────────────────────────
+  app.get('/api/recommendations', (req, res) => {
+    try {
+      res.json(db.getModelRecommendations());
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Session Clusters ──────────────────────────────────
+  app.get('/api/clusters', (req, res) => {
+    try {
+      res.json(db.getSessionClusters());
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Git Branch + PR Cost ──────────────────────────────
+  app.get('/api/git/branch-cost', (req, res) => {
+    try {
+      const { projectId, branch, startDate, endDate } = req.query;
+      res.json(git.getBranchPRCost({
+        projectId: projectId ? Number(projectId) : undefined,
+        branch, startDate, endDate,
+      }));
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Subagent Cost Tree ────────────────────────────────
+  app.get('/api/subagent-tree', (req, res) => {
+    try {
+      res.json(db.getSubagentTree());
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Session Bookmarks ─────────────────────────────────
+  app.get('/api/bookmarks', (req, res) => {
+    try {
+      res.json(db.getBookmarks());
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/bookmarks', (req, res) => {
+    try {
+      const { sessionId, label, note } = req.body;
+      if (!sessionId) return res.status(400).json({ error: 'sessionId required' });
+      res.json(db.addBookmark(sessionId, label, note));
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/bookmarks/:sessionId', (req, res) => {
+    try {
+      res.json(db.removeBookmark(req.params.sessionId));
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Achievements ──────────────────────────────────────
+  app.get('/api/achievements', (req, res) => {
+    try {
+      res.json(db.getAchievements());
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
