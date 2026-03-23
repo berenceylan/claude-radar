@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/screenshots/overview.png" width="48%" alt="overview">
+<img src="docs/screenshots/splash.png" width="48%" alt="splash">
 
 # Claude Radar
 
@@ -18,10 +18,6 @@ npx claude-radar
 ```
 
 </div>
-
-<p align="center">
-  <img src="docs/screenshots/live.png" width="48%" alt="live">
-</p>
 
 ## ⚡ Quick Start
 
@@ -41,6 +37,10 @@ Opens the dashboard at `http://localhost:3400`. First run indexes your `~/.claud
 <summary>🌃 Live Token Visualization</summary>
 <br>
 
+<p align="center">
+  <img src="docs/screenshots/live.png" width="48%" alt="live">
+</p>
+
 **Real-time canvas visualization.** Each building = a project, height = cost. Stars twinkle on cache hits, sky shifts with spend intensity. Billing gauges, token rate sparkline, and stats bar overlay.
 
 </details>
@@ -49,6 +49,10 @@ Opens the dashboard at `http://localhost:3400`. First run indexes your `~/.claud
 <summary>📊 Executive Dashboard</summary>
 <br>
 
+<p align="center">
+  <img src="docs/screenshots/overview.png" width="48%" alt="overview">
+</p>
+
 **Three hero KPIs (paid vs API value vs ROI), 20+ interactive charts, project/model breakdown tables, activity heatmap.** Everything you need at a glance.
 
 </details>
@@ -56,6 +60,11 @@ Opens the dashboard at `http://localhost:3400`. First run indexes your `~/.claud
 <details>
 <summary>🔗 Git-to-Cost Tracking</summary>
 <br>
+
+<p align="center">
+  <img src="docs/screenshots/git.png" width="48%" alt="git">
+</p>
+
 
 **Every git commit mapped to its Claude session cost.** Cost per commit, per branch, per line of code. Most expensive commits ranked. Nobody else has this.
 
@@ -72,6 +81,10 @@ Opens the dashboard at `http://localhost:3400`. First run indexes your `~/.claud
 <details>
 <summary>🧠 AI Insights Engine</summary>
 <br>
+
+<p align="center">
+  <img src="docs/screenshots/insights.png" width="48%" alt="insights">
+</p>
 
 **12 automated detection rules: cost spikes, cache efficiency, 5-hour billing window, model recommendations, usage concentration, inactive projects, and more.**
 
@@ -96,6 +109,10 @@ Opens the dashboard at `http://localhost:3400`. First run indexes your `~/.claud
 <details>
 <summary>🏷️ Session Clustering</summary>
 <br>
+
+<p align="center">
+  <img src="docs/screenshots/sessions.png" width="48%" alt="sessions">
+</p>
 
 **Auto-classifies sessions by work type: bug fixing, exploration, greenfield, refactoring, testing, review.** Cost breakdown per type.
 
@@ -178,63 +195,6 @@ Opens the dashboard at `http://localhost:3400`. First run indexes your `~/.claud
 <br>
 
 **JSON, CSV, and HTML report exports.** All respect current date filters.
-
-</details>
-
-## 📦 Release Notes
-
-<details>
-<summary><strong>v2.2.0</strong> — The Analytics Update (latest)</summary>
-<br>
-
-- 🎛️ **"What If" Cost Simulator** — model switching & cache improvement calculator
-- 📅 **Activity Heatmap** — GitHub-style hour × day grid
-- 📈 **Prompt Efficiency Scoring** — A-F grades per session
-- 🏷️ **Session Clustering** — auto-classify: bug fixing, exploration, greenfield, refactoring
-- 💰 **Budget Alerts** — monthly budget tracking with burn-down gauge
-- ⚡ **CLI Quick Stats** — `claude-radar stats` terminal command
-- 🔖 **Session Bookmarks** — tag & annotate sessions
-- ⌨️ **Keyboard Shortcuts** — 1-7 tabs, ? help, R refresh
-- 🧠 **Model Recommendations** — "switch to Haiku and save $X"
-- 🔧 **Subagent Cost Tree** — parent → child cost hierarchy
-- 📄 **Week-over-week Comparison** — report generator with delta arrows
-- 💡 **Tooltip Help** — ? icons on every chart explaining what it shows
-- 📟 **5h Window Gauge** — real % from Claude statusline hook
-- 🗂️ **New JSONL fields** — speed, web_search, web_fetch, sidechain indexing
-- 📊 **Cost per Line** — LoC/$ charts on Git Costs tab
-
-</details>
-
-<details>
-<summary><strong>v2.1.0</strong> — Live Page</summary>
-<br>
-
-- 🌃 **Live City Skyline** — real-time canvas visualization with buildings per project
-- 📟 **Billing gauges** — billing period + 5-hour window
-- 📈 **Token rate sparkline** — top-left rate history
-- 📊 **Stats bar overlay** — tok/sec, tokens, cost, cache, model, msgs
-- 🔄 **WebSocket + polling** — live data refresh every 5s
-- `/api/live` endpoint for 5h window stats
-- `/api/project/:id` and `/api/projects` endpoints
-
-</details>
-
-<details>
-<summary><strong>v2.0.0</strong> — Initial Release</summary>
-<br>
-
-- 📊 Executive dashboard with 15+ charts
-- 🔗 Git-to-cost tracking (cost per commit, branch, line)
-- 💬 Session browser with Gantt timeline
-- 🧠 AI Insights Engine (10 detection rules)
-- 🔧 Tool & subagent analytics
-- 🤖 MCP server with 5 tools
-- 📄 Report generator
-- 🔒 PII redaction (10 patterns)
-- 🎨 3 themes (dark, light, contrast)
-- 📡 Real-time WebSocket updates
-- 🧪 86 tests, 72% coverage
-- 🔐 Security: localhost-only, origin checking, parameterized SQL, SRI
 
 </details>
 
