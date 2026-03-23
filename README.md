@@ -33,43 +33,46 @@ Opens the dashboard at `http://localhost:3400`. First run indexes your `~/.claud
 
 ## ✨ Features
 
+<p align="center">
+  <img src="docs/screenshots/live.png" width="48%" alt="live">
+</p>
 <details>
 <summary>🌃 Live Token Visualization</summary>
 <br>
 
-<p align="center">
-  <img src="docs/screenshots/live.png" width="48%" alt="live">
-</p>
 
 **Real-time canvas visualization.** Each building = a project, height = cost. Stars twinkle on cache hits, sky shifts with spend intensity. Billing gauges, token rate sparkline, and stats bar overlay.
 
 </details>
 
-<details>
-<summary>📊 Executive Dashboard</summary>
-<br>
 
 <p align="center">
   <img src="docs/screenshots/overview.png" width="48%" alt="overview">
 </p>
+<details>
+<summary>📊 Executive Dashboard</summary>
+<br>
 
 **Three hero KPIs (paid vs API value vs ROI), 20+ interactive charts, project/model breakdown tables, activity heatmap.** Everything you need at a glance.
 
 </details>
 
-<details>
-<summary>🔗 Git-to-Cost Tracking</summary>
-<br>
-
 <p align="center">
   <img src="docs/screenshots/git.png" width="48%" alt="git">
 </p>
+<details>
+<summary>🔗 Git-to-Cost Tracking</summary>
+<br>
 
 
 **Every git commit mapped to its Claude session cost.** Cost per commit, per branch, per line of code. Most expensive commits ranked. Nobody else has this.
 
 </details>
 
+
+<p align="center">
+  <img src="docs/screenshots/gantt.png" width="48%" alt="gantt">
+</p>
 <details>
 <summary>💬 Session Browser</summary>
 <br>
@@ -78,13 +81,12 @@ Opens the dashboard at `http://localhost:3400`. First run indexes your `~/.claud
 
 </details>
 
-<details>
-<summary>🧠 AI Insights Engine</summary>
-<br>
-
 <p align="center">
   <img src="docs/screenshots/insights.png" width="48%" alt="insights">
 </p>
+<details>
+<summary>🧠 AI Insights Engine</summary>
+<br>
 
 **12 automated detection rules: cost spikes, cache efficiency, 5-hour billing window, model recommendations, usage concentration, inactive projects, and more.**
 
@@ -97,6 +99,7 @@ Opens the dashboard at `http://localhost:3400`. First run indexes your `~/.claud
 **Interactive sliders: what if you shifted model usage? What if cache improved? See projected savings instantly.**
 
 </details>
+
 
 <details>
 <summary>📅 Activity Heatmap</summary>
